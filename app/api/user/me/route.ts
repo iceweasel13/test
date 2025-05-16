@@ -1,7 +1,7 @@
 // app/api/user/me/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { supabase } from "@/lib/supabase"; // Supabase client'ınızın doğru import edildiğinden emin olun
+import { createClient } from "@/lib/supabase";
 import type { Users } from "@/lib/types"; // Users tip tanımınız
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -54,11 +54,11 @@ export async function GET(req: NextRequest) {
         token,
         JWT_SECRET
       ) as DecodedTokenPayload;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         "Token doğrulama hatası:",
-        error.name,
-        error.message
+        (error as Error).name,
+        (error as Error).message
       );
       if (error instanceof jwt.TokenExpiredError) {
         return NextResponse.json(
@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
 
     // 3. Supabase'den kullanıcı bilgilerini ID'ye göre çek
     // Users tipinizdeki tüm alanları (özellikle score) seçtiğinizden emin olun.
+    const supabase = createClient();
     const { data: userFromDb, error: dbError } =
       await supabase
         .from("users") // Tablo adınızın 'users' olduğundan emin olun
@@ -160,7 +161,7 @@ export async function GET(req: NextRequest) {
 
     // 4. Kullanıcı bilgilerini döndür
     return NextResponse.json(responseUser, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(
       "Kullanıcı bilgileri API (/api/user/me) genel hatası:",
       e
@@ -168,7 +169,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         error: "Dahili sunucu hatası.",
-        details: e.message,
+        details: e instanceof Error ? e.message : String(e),
       },
       { status: 500 }
     );

@@ -1,12 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/auth/wallet/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import type { Users } from "@/lib/types"; // Users tip tanımınız
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-// Supabase client'ı lib/supabase.ts'den import etmek yerine, her istek için Route Handler içinde oluşturacağız.
-// import { supabase } from "@/lib/supabase"; // Bu satırı kaldırıyoruz veya yorumluyoruz.
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
+import { createClient } from "@/lib/supabase";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -94,39 +93,11 @@ export async function POST(req: NextRequest) {
   }
   console.log(`[${requestId}] JWT_SECRET mevcut.`);
 
-  // Supabase Client'ını Oluşturma (yeni yöntemle)
+  // Supabase Client'ını Oluşturma (lib/supabase.ts'den)
   console.log(
-    `[${requestId}] Supabase client oluşturuluyor (@supabase/ssr createServerClient ile).`
+    `[${requestId}] Supabase client oluşturuluyor (lib/supabase.ts createClient ile).`
   );
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    // Generic tipini Users olarak belirtmeye gerek yok, veritabanı şemanızdan çıkarım yapacaktır.
-    // Eğer spesifik bir beklentiniz varsa belirtebilirsiniz.
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(
-              ({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-            );
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-            console.warn(
-              `[${requestId}] Supabase client: setAll cookie metodu Server Component içinden çağrıldı, middleware varsa sorun değil.`
-            );
-          }
-        },
-      },
-    }
-  );
+  const supabase = createClient();
   console.log(
     `[${requestId}] Supabase client başarıyla oluşturuldu.`
   );

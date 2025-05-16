@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthController } from "@/hooks/AuthController";
 import {
   createNetworkConfig,
   SuiClientProvider,
@@ -28,6 +29,7 @@ const Providers: FC<any> = ({ children }) => {
           autoConnect={true}
           storageKey="my-app-wallet-connection"
         >
+          <AuthController />
           {children}
         </WalletProvider>
       </SuiClientProvider>
