@@ -13,7 +13,7 @@ const FishClicker = () => {
     null
   );
   const containerRef = useRef<HTMLDivElement>(null);
-  let clickId = 0; // Benzersiz ID için
+  const clickIdRef = useRef(0); // Benzersiz ID için
 
   const handleMouseDown = (
     e: React.MouseEvent | React.TouchEvent
@@ -38,7 +38,7 @@ const FishClicker = () => {
     // Yeni +1 ekle
     setPlusOnes((prev) => [
       ...prev,
-      { id: clickId++, x, y },
+      { id: clickIdRef.current++, x, y },
     ]);
 
     // Balık büyümesi
