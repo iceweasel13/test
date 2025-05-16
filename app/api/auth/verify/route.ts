@@ -15,8 +15,21 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  if (!JWT_SECRET) {
+    return NextResponse.json(
+      {
+        error:
+          "Server misconfiguration: JWT_SECRET is not set.",
+      },
+      { status: 500 }
+    );
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(
+      token,
+      JWT_SECRET
+    ) as jwt.JwtPayload;
     const user = {
       id: decoded.sub,
       wallet_address: decoded.wallet_address,
