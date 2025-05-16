@@ -1,4 +1,4 @@
-import { useWalletAuth } from "@/lib/useWalletAuth";
+import { useWalletAuth } from "@/hooks/useWalletAuth";
 
 export function AuthController() {
   useWalletAuth();

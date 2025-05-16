@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/lib/authStore";
+import { useAuthStore } from "@/lib/stores/authStore";
 import {
   useCurrentAccount,
   useSignPersonalMessage,

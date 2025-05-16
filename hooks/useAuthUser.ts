@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAuthStore } from "@/lib/authStore"; // Zustand store
+import { useAuthStore } from "@/lib/stores/authStore"; // Zustand store
 import type { Users } from "@/lib/types";
 
 interface UseAuthUserReturn {
@@ -24,7 +24,7 @@ export const useAuthUser = (): UseAuthUserReturn => {
     setError(null);
 
     if (!token) {
-      setError("Oturum açılmamış veya token bulunamadı.");
+      setError("");
       setIsLoading(false);
       setUser(null);
       return;
