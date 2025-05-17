@@ -8,10 +8,16 @@ import React from "react";
 const ClickProgress = () => {
   const { user, isLoading, error } = useAuthUser();
 
-  // Percentage hesaplaması (güvenli)
+  // Kullanılan ve toplam click'ler
+  const usedClicks = user?.purchased_clicks_used ?? 0;
+  const totalClicks =
+    (user?.daily_clicks ?? 0) +
+    (user?.purchased_clicks ?? 0);
+
+  // Yüzde hesaplama (güvenli)
   const percentage =
-    user?.clicks && user?.max_clicks
-      ? Math.min((user.clicks / user.max_clicks) * 100, 100)
+    totalClicks > 0
+      ? Math.min((usedClicks / totalClicks) * 100, 100)
       : 0;
 
   // Yükleme durumu
@@ -32,7 +38,7 @@ const ClickProgress = () => {
     );
   }
 
-  // Kullanıcı verisi yoksa (örneğin, oturum kapalı)
+  // Kullanıcı verisi yoksa
   if (!user) {
     return (
       <div className="w-full max-w-md mx-auto px-4 text-center text-gray-500">
@@ -49,7 +55,7 @@ const ClickProgress = () => {
           className="h-8 md:h-12 w-full bg-blue-200 rounded-full"
         />
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm md:text-xl font-semibold text-white">
-          {user.clicks} / {user.max_clicks}
+          {usedClicks}/{totalClicks}
         </span>
       </div>
     </div>

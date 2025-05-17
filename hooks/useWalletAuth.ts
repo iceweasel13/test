@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+"use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/stores/authStore";
 import {
@@ -6,8 +8,10 @@ import {
   useDisconnectWallet,
   useAutoConnectWallet,
 } from "@mysten/dapp-kit";
+import { useSearchParams } from "next/navigation";
 
 export function useWalletAuth() {
+  const searchParams = useSearchParams();
   const account = useCurrentAccount();
   const autoConnectionStatus = useAutoConnectWallet();
   const { mutate: signPersonalMessage } =
@@ -106,7 +110,6 @@ export function useWalletAuth() {
         try {
           await login();
           setLoginError(null);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           setLoginError(
             "Failed to sign in automatically, please try manually."
@@ -151,39 +154,86 @@ export function useWalletAuth() {
       setLoginError(
         "No wallet connected, please connect a wallet."
       );
-      return;
+      return Promise.reject(
+        new Error(
+          "No wallet connected, please connect a wallet."
+        )
+      );
     }
     const timestamp = Date.now();
     const message = `Login to the app at ${timestamp}`;
+
+    // URL'den 'ref' parametresini al
+    const refValue = searchParams
+      ? searchParams.get("ref")?.toLowerCase()
+      : null;
+    console.log(
+      "Frontend: Çekilen ref parametresi:",
+      refValue
+    );
+
     return new Promise<void>((resolve, reject) => {
       signPersonalMessage(
         { message: new TextEncoder().encode(message) },
         {
           onSuccess: async (result) => {
             const signature = result.signature;
-            const res = await fetch("/api/auth/wallet", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                wallet_address: account.address,
-                message,
-                signature,
-              }),
-            });
-            if (!res.ok) {
+            try {
+              const res = await fetch("/api/auth/wallet", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  wallet_address: account.address,
+                  message,
+                  signature,
+                  referrer_wallet_address: refValue, // Body ile gönderiyoruz
+                }),
+              });
+
+              if (!res.ok) {
+                const errorData = await res
+                  .json()
+                  .catch(() => ({
+                    message:
+                      "Authentication failed with status: " +
+                      res.status,
+                  }));
+                clearAuth();
+                setLoginError(
+                  errorData.details ||
+                    errorData.error ||
+                    errorData.message ||
+                    "Authentication failed, please try again."
+                );
+                reject(
+                  new Error(
+                    errorData.details ||
+                      errorData.error ||
+                      errorData.message ||
+                      "Authentication failed"
+                  )
+                );
+                return;
+              }
+
+              const { user, token: newToken } =
+                await res.json();
+              setAuth(user, newToken);
+              setLoginError(null);
+              resolve();
+            } catch (error) {
+              console.error(
+                "Login API call failed:",
+                error
+              );
               clearAuth();
               setLoginError(
-                "Authentication failed, please try again."
+                "An unexpected error occurred during login. Please try again."
               );
-              reject(new Error("Auth failed"));
-              return;
+              reject(error);
             }
-            const { user, token } = await res.json();
-            setAuth(user, token);
-            setLoginError(null);
-            resolve();
           },
           onError: (err) => {
             clearAuth();

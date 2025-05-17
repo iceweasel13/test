@@ -1,38 +1,65 @@
-// app/api/user/me/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { createClient } from "@/lib/supabase";
-import type { Users } from "@/lib/types"; // Users tip tanımınız
+import { createClient as createSupabaseClient } from "@/lib/supabase";
+import type { Users } from "@/lib/types";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Token'dan decode edilecek payload'ın arayüzü
 interface DecodedTokenPayload extends JwtPayload {
-  sub: string; // Kullanıcı ID'si (subject)
-  userId?: string; // Token'da bu da bulunuyordu
-  address?: string; // Token'da cüzdan adresi de bulunuyordu
-  // Token'a eklediğiniz diğer özel alanlar varsa burada tanımlanabilir
+  sub: string;
+  userId?: string;
+  address?: string;
 }
 
 export async function GET(req: NextRequest) {
+  const requestId = `req_me_${Date.now()}_${Math.random()
+    .toString(36)
+    .substring(2, 7)}`;
+  console.log(
+    `\n[${requestId}] ========== API /api/user/me GET İSTEĞİ BAŞLADI ==========`
+  );
+
+  // 1. JWT_SECRET Kontrolü
+  console.log(
+    `[${requestId}] Adım 1: JWT_SECRET kontrol ediliyor.`
+  );
   if (!JWT_SECRET) {
     console.error(
-      "KRİTİK HATA: JWT_SECRET ortam değişkeni ayarlanmamış."
+      `[${requestId}] KRİTİK HATA: JWT_SECRET eksik.`
     );
     return NextResponse.json(
-      { error: "Sunucu yapılandırma hatası." },
+      {
+        error:
+          "Sunucu yapılandırma hatası: JWT_SECRET eksik.",
+      },
       { status: 500 }
     );
   }
+  console.log(`[${requestId}] JWT_SECRET mevcut.`);
+
+  // 2. Supabase Client
+  console.log(
+    `[${requestId}] Supabase client oluşturuluyor.`
+  );
+  const supabase = createSupabaseClient();
+  console.log(
+    `[${requestId}] Supabase client oluşturuldu.`
+  );
 
   try {
-    // 1. Authorization header'ından token'ı al
+    // 3. Authorization Header ve Token
+    console.log(
+      `[${requestId}] Adım 2: Authorization header kontrol ediliyor.`
+    );
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.warn(
+        `[${requestId}] UYARI: Authorization başlığı eksik veya hatalı.`
+      );
       return NextResponse.json(
         {
           error:
-            "Yetkilendirme başlığı eksik veya 'Bearer ' token formatı yanlış.",
+            "Yetkilendirme başlığı eksik veya 'Bearer ' formatı yanlış.",
         },
         { status: 401 }
       );
@@ -40,27 +67,37 @@ export async function GET(req: NextRequest) {
 
     const token = authHeader.split(" ")[1];
     if (!token) {
+      console.warn(
+        `[${requestId}] UYARI: Token bulunamadı.`
+      );
       return NextResponse.json(
         { error: "Token bulunamadı." },
         { status: 401 }
       );
     }
+    console.log(`[${requestId}] Token alındı.`);
 
-    // 2. Token'ı doğrula ve payload'ı al
+    // 4. Token Doğrulama
+    console.log(
+      `[${requestId}] Adım 3: JWT token doğrulanıyor.`
+    );
     let decodedPayload: DecodedTokenPayload;
     try {
-      // jwt.verify senkron bir fonksiyondur, await gerekmez.
       decodedPayload = jwt.verify(
         token,
         JWT_SECRET
       ) as DecodedTokenPayload;
-    } catch (error: unknown) {
-      console.error(
-        "Token doğrulama hatası:",
-        (error as Error).name,
-        (error as Error).message
+      console.log(
+        `[${requestId}] JWT doğrulandı:`,
+        decodedPayload
       );
-      if (error instanceof jwt.TokenExpiredError) {
+    } catch (error: unknown) {
+      const e = error as Error;
+      console.error(
+        `[${requestId}] HATA: Token doğrulama başarısız.`,
+        e
+      );
+      if (e instanceof jwt.TokenExpiredError) {
         return NextResponse.json(
           {
             error:
@@ -69,7 +106,7 @@ export async function GET(req: NextRequest) {
           { status: 401 }
         );
       }
-      if (error instanceof jwt.JsonWebTokenError) {
+      if (e instanceof jwt.JsonWebTokenError) {
         return NextResponse.json(
           {
             error:
@@ -84,12 +121,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Token payload'ından kullanıcı ID'sini al. 'sub' standart olduğu için onu kullanalım.
+    // 5. Kullanıcı ID’si
+    console.log(
+      `[${requestId}] Adım 4: Kullanıcı ID’si alınıyor.`
+    );
     const userIdFromToken = decodedPayload.sub;
-
     if (!userIdFromToken) {
       console.error(
-        "Token payload'ında 'sub' (kullanıcı ID) alanı bulunamadı.",
+        `[${requestId}] HATA: Token’da 'sub' eksik.`,
         decodedPayload
       );
       return NextResponse.json(
@@ -100,26 +139,29 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
+    console.log(
+      `[${requestId}] Kullanıcı ID: ${userIdFromToken}`
+    );
 
-    // 3. Supabase'den kullanıcı bilgilerini ID'ye göre çek
-    // Users tipinizdeki tüm alanları (özellikle score) seçtiğinizden emin olun.
-    const supabase = createClient();
+    // 6. Supabase’den Kullanıcı Bilgileri
+    const selectFields =
+      "id,wallet_address,score,daily_clicks,daily_clicks_available,purchased_clicks,purchased_clicks_used,referrer_wallet_address,referral_bonus_score,last_active_at,created_at";
+    console.log(
+      `[${requestId}] Adım 5: Kullanıcı bilgileri çekiliyor.`
+    );
     const { data: userFromDb, error: dbError } =
       await supabase
-        .from("users") // Tablo adınızın 'users' olduğundan emin olun
-        .select(
-          "id, wallet_address, last_active, created_at, clicks, score, max_clicks"
-        ) // Frontend'de ihtiyaç duyulan tüm alanlar
-        .eq("id", userIdFromToken) // Token'dan alınan ID ile eşleştir
-        .single(); // Kullanıcının tek olması beklenir
+        .from("users")
+        .select(selectFields)
+        .eq("id", userIdFromToken)
+        .single();
 
     if (dbError) {
       console.error(
-        `Supabase kullanıcı çekme hatası (ID: ${userIdFromToken}):`,
+        `[${requestId}] HATA: Kullanıcı çekme hatası.`,
         dbError
       );
       if (dbError.code === "PGRST116") {
-        // Kullanıcı bulunamadı (PostgREST error code)
         return NextResponse.json(
           {
             error: `ID'si ${userIdFromToken} olan kullanıcı bulunamadı.`,
@@ -129,48 +171,66 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json(
         {
-          error:
-            "Veritabanından kullanıcı bilgileri çekilemedi.",
+          error: "Veritabanı hatası.",
+          details: dbError.message,
         },
         { status: 500 }
       );
     }
 
     if (!userFromDb) {
-      // Bu durum genellikle dbError.code === 'PGRST116' ile yakalanır, ama ek bir kontrol.
       console.warn(
-        `Veritabanında ID'si ${userIdFromToken} olan kullanıcı bulunamadı (token geçerli olabilir).`
+        `[${requestId}] UYARI: Kullanıcı bulunamadı.`
       );
       return NextResponse.json(
         { error: "Kullanıcı veritabanında bulunamadı." },
         { status: 404 }
       );
     }
+    console.log(
+      `[${requestId}] Kullanıcı verisi çekildi:`,
+      userFromDb
+    );
 
-    // Users tipine uygun ve frontend'in beklediği yapıda response objesi oluştur.
-    // Null olabilecek değerler için varsayılanlar ata.
+    // 7. Yanıt Kullanıcı Objesi
+    console.log(
+      `[{requestId}] Adım 6: Yanıt objesi hazırlanıyor.`
+    );
     const responseUser: Users = {
       id: userFromDb.id,
-      wallet_address: userFromDb.wallet_address, // DB'den gelen cüzdan adresini kullan
-      last_active: userFromDb.last_active,
+      wallet_address: userFromDb.wallet_address,
+      score: userFromDb.score ?? 0,
+      daily_clicks: userFromDb.daily_clicks ?? 100,
+      daily_clicks_available:
+        userFromDb.daily_clicks_available ?? 100,
+      purchased_clicks: userFromDb.purchased_clicks ?? 0,
+      purchased_clicks_used:
+        userFromDb.purchased_clicks_used ?? 0,
+      referrer_wallet_address:
+        userFromDb.referrer_wallet_address ?? null,
+      referral_bonus_score:
+        userFromDb.referral_bonus_score ?? 0,
+      last_active_at: userFromDb.last_active_at,
       created_at: userFromDb.created_at,
-      clicks: userFromDb.clicks ?? 0,
-      score: userFromDb.score ?? 0, // StarBar için bu alanın doğru olması çok önemli
-      max_clicks: userFromDb.max_clicks ?? 100, // Varsayılan max_clicks, eğer DB'de null ise
     };
+    console.log(
+      `[${requestId}] Yanıt objesi:`,
+      responseUser
+    );
 
-    // 4. Kullanıcı bilgilerini döndür
+    // 8. Yanıt
+    console.log(
+      `[${requestId}] Adım 7: Kullanıcı bilgileri dönülüyor.`
+    );
+    console.log(
+      `[${requestId}] ========== API /api/user/me GET TAMAMLANDI ==========`
+    );
     return NextResponse.json(responseUser, { status: 200 });
   } catch (e: unknown) {
-    console.error(
-      "Kullanıcı bilgileri API (/api/user/me) genel hatası:",
-      e
-    );
+    const error = e as Error;
+    console.error(`[${requestId}] GENEL HATA:`, error);
     return NextResponse.json(
-      {
-        error: "Dahili sunucu hatası.",
-        details: e instanceof Error ? e.message : String(e),
-      },
+      { error: "Sunucu hatası.", details: error.message },
       { status: 500 }
     );
   }

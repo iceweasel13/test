@@ -1,15 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/api/auth/wallet/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import type { Users } from "@/lib/types"; // Users tip tanımınız
+import type { Users } from "@/lib/types";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-
-import { createClient } from "@/lib/supabase";
+import { createClient as createSupabaseClient } from "@/lib/supabase";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// --- Detaylı Loglama ile Sui İmza Doğrulama ---
+// Sui İmza Doğrulama
 async function verifySuiSignatureHelperWithLogging(
   address: string,
   messageString: string,
@@ -22,13 +20,10 @@ async function verifySuiSignatureHelperWithLogging(
   console.log(
     `[${requestId}] verifySuiSignatureHelper: Doğrulanacak Mesaj: "${messageString}"`
   );
-  console.log(
-    `[${requestId}] verifySuiSignatureHelper: Doğrulanacak İmza: "${signatureString}"`
-  );
 
   if (!address || !messageString || !signatureString) {
     console.error(
-      `[${requestId}] verifySuiSignatureHelper: Eksik parametreler! Adres, mesaj veya imza boş.`
+      `[${requestId}] verifySuiSignatureHelper: Eksik parametreler!`
     );
     return false;
   }
@@ -38,29 +33,25 @@ async function verifySuiSignatureHelperWithLogging(
       messageString
     );
     console.log(
-      `[${requestId}] verifySuiSignatureHelper: Mesaj başarıyla byte dizisine çevrildi.`
+      `[${requestId}] verifySuiSignatureHelper: Mesaj byte dizisine çevrildi.`
     );
 
     await verifyPersonalMessageSignature(
       messageBytes,
       signatureString,
-      {
-        address: address,
-      }
+      { address }
     );
-
     console.log(
-      `[${requestId}] verifySuiSignatureHelper: Sui SDK ile imza doğrulama BAŞARILI.`
+      `[${requestId}] verifySuiSignatureHelper: İmza doğrulama BAŞARILI.`
     );
     return true;
   } catch (error: any) {
     console.error(
-      `[${requestId}] verifySuiSignatureHelper: Sui SDK ile imza doğrulama BAŞARISIZ! Hata:`,
+      `[${requestId}] verifySuiSignatureHelper: İmza doğrulama BAŞARISIZ!`,
       {
         name: error.name,
         message: error.message,
-        stack: error.stack,
-        details: error,
+        details: error.toString(),
       }
     );
     return false;
@@ -68,7 +59,7 @@ async function verifySuiSignatureHelperWithLogging(
 }
 
 export async function POST(req: NextRequest) {
-  const requestId = `req_${Date.now()}_${Math.random()
+  const requestId = `req_wallet_${Date.now()}_${Math.random()
     .toString(36)
     .substring(2, 7)}`;
   console.log(
@@ -81,7 +72,7 @@ export async function POST(req: NextRequest) {
   );
   if (!JWT_SECRET) {
     console.error(
-      `[${requestId}] KRİTİK HATA: JWT_SECRET ortam değişkeni ayarlanmamış.`
+      `[${requestId}] KRİTİK HATA: JWT_SECRET eksik.`
     );
     return NextResponse.json(
       {
@@ -93,39 +84,36 @@ export async function POST(req: NextRequest) {
   }
   console.log(`[${requestId}] JWT_SECRET mevcut.`);
 
-  // Supabase Client'ını Oluşturma (lib/supabase.ts'den)
+  // 2. Supabase Client
   console.log(
-    `[${requestId}] Supabase client oluşturuluyor (lib/supabase.ts createClient ile).`
+    `[${requestId}] Supabase client oluşturuluyor.`
   );
-  const supabase = createClient();
+  const supabase = createSupabaseClient();
   console.log(
-    `[${requestId}] Supabase client başarıyla oluşturuldu.`
+    `[${requestId}] Supabase client oluşturuldu.`
   );
 
   try {
-    // 2. İstek Body'sini Parse Etme
+    // 3. İstek Body’si ve URL Parametreleri
     console.log(
-      `[${requestId}] Adım 2: İstek body'si JSON olarak parse ediliyor.`
+      `[${requestId}] Adım 2: İstek body’si ve URL parametreleri parse ediliyor.`
     );
     let requestPayload: {
       wallet_address: string;
       message: string;
       signature: string;
+      referrer_wallet_address?: string;
     };
     try {
       requestPayload = await req.json();
       console.log(
-        `[${requestId}] İstek body'si başarıyla parse edildi:`,
+        `[${requestId}] İstek body’si parse edildi:`,
         requestPayload
       );
     } catch (parseError: any) {
       console.error(
-        `[${requestId}] HATA: İstek body'si JSON olarak parse edilemedi.`,
-        {
-          name: parseError.name,
-          message: parseError.message,
-          stack: parseError.stack,
-        }
+        `[${requestId}] HATA: İstek body’si parse edilemedi.`,
+        parseError
       );
       return NextResponse.json(
         {
@@ -136,16 +124,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { wallet_address, message, signature } =
-      requestPayload;
+    const walletAddress =
+      requestPayload.wallet_address?.toLowerCase();
+    const message = requestPayload.message;
+    const signature = requestPayload.signature;
+    const referrerWalletAddress =
+      requestPayload.referrer_wallet_address?.toLowerCase() ||
+      req.nextUrl.searchParams.get("ref")?.toLowerCase();
 
-    // 3. Gelen Parametrelerin Kontrolü
+    // 4. Parametre Kontrolü
     console.log(
-      `[${requestId}] Adım 3: Gelen parametreler kontrol ediliyor.`
+      `[${requestId}] Adım 3: Parametreler kontrol ediliyor.`
     );
-    if (!wallet_address || !message || !signature) {
+    if (!walletAddress || !message || !signature) {
       console.error(
-        `[${requestId}] HATA: Eksik parametreler. Cüzdan Adresi: ${wallet_address}, Mesaj: ${message}, İmza: ${signature}`
+        `[${requestId}] HATA: Zorunlu parametreler eksik.`
       );
       return NextResponse.json(
         {
@@ -156,86 +149,64 @@ export async function POST(req: NextRequest) {
       );
     }
     console.log(
-      `[${requestId}] Gelen parametreler tam: Cüzdan Adresi: ${wallet_address}`
+      `[${requestId}] Parametreler tam. Referans: ${
+        referrerWalletAddress || "Yok"
+      }`
     );
 
-    // 4. Sui İmzasını Doğrulama
+    // 5. Sui İmza Doğrulama
     console.log(
       `[${requestId}] Adım 4: Sui imzası doğrulanıyor.`
     );
     const isValidSignature =
       await verifySuiSignatureHelperWithLogging(
-        wallet_address,
+        walletAddress,
         message,
         signature,
         requestId
       );
-
     if (!isValidSignature) {
       console.warn(
-        `[${requestId}] UYARI: İmza doğrulama başarısız oldu. Adres: ${wallet_address}`
+        `[${requestId}] UYARI: İmza doğrulama başarısız.`
       );
       return NextResponse.json(
         { error: "Geçersiz imza." },
         { status: 401 }
       );
     }
-    console.log(
-      `[${requestId}] İmza başarıyla doğrulandı.`
-    );
+    console.log(`[${requestId}] İmza doğrulandı.`);
 
-    // 5. Supabase İşlemleri
+    // 6. Supabase İşlemleri
     console.log(
-      `[${requestId}] Adım 5: Supabase kullanıcı işlemleri başlıyor.`
+      `[${requestId}] Adım 5: Supabase işlemleri başlıyor.`
     );
     let finalUser: Partial<Users> | null = null;
     const nowISO = new Date().toISOString();
-    console.log(
-      `[${requestId}] Şu anki zaman (ISO): ${nowISO}`
-    );
 
-    // 5a. Mevcut Kullanıcıyı Çekme Denemesi
+    // 6a. Mevcut Kullanıcı Kontrolü
+    const selectFields =
+      "id,wallet_address,score,daily_clicks,daily_clicks_available,purchased_clicks,purchased_clicks_used,referrer_wallet_address,referral_bonus_score,last_active_at,created_at";
     console.log(
-      `[${requestId}] Adım 5a: Supabase'den mevcut kullanıcı çekiliyor. Cüzdan Adresi: ${wallet_address}`
+      `[${requestId}] Adım 5a: Kullanıcı çekiliyor.`
     );
     const { data: existingUser, error: userFetchError } =
       await supabase
         .from("users")
-        .select(
-          "id, wallet_address, last_active, created_at, clicks, score, max_clicks"
-        )
-        .eq("wallet_address", wallet_address)
+        .select(selectFields)
+        .eq("wallet_address", walletAddress)
         .single();
-
-    if (userFetchError) {
-      console.log(
-        `[${requestId}] Supabase kullanıcı çekme denemesi sonucu hata:`,
-        {
-          code: userFetchError.code,
-          message: userFetchError.message,
-          details: userFetchError.details,
-          hint: userFetchError.hint,
-        }
-      );
-    } else {
-      console.log(
-        `[${requestId}] Supabase kullanıcı çekme denemesi sonucu veri:`,
-        existingUser
-      );
-    }
 
     if (
       userFetchError &&
       userFetchError.code !== "PGRST116"
     ) {
       console.error(
-        `[${requestId}] HATA: Supabase'den kullanıcı çekilirken 'PGRST116' dışında bir hata oluştu.`,
+        `[${requestId}] HATA: Kullanıcı çekme hatası.`,
         userFetchError
       );
       return NextResponse.json(
         {
-          error:
-            "Veritabanı hatası: Kullanıcı verisi çekilemedi.",
+          error: "Veritabanı hatası.",
           details: userFetchError.message,
         },
         { status: 500 }
@@ -243,48 +214,60 @@ export async function POST(req: NextRequest) {
     }
 
     if (existingUser) {
+      // 6b. Mevcut Kullanıcı: last_active_at güncelle
       console.log(
-        `[${requestId}] Adım 5b: Kullanıcı mevcut. ID: ${existingUser.id}. last_active güncelleniyor.`
+        `[${requestId}] Adım 5b: Kullanıcı mevcut. Güncelleniyor.`
       );
       const { data: updatedUser, error: updateError } =
         await supabase
           .from("users")
-          .update({ last_active: nowISO })
-          .eq("wallet_address", wallet_address)
-          .select(
-            "id, wallet_address, last_active, created_at, clicks, score, max_clicks"
-          )
+          .update({ last_active_at: nowISO })
+          .eq("wallet_address", walletAddress)
+          .select(selectFields)
           .single();
 
       if (updateError) {
         console.warn(
-          `[${requestId}] UYARI: Kullanıcının (ID: ${existingUser.id}) last_active alanı güncellenemedi (kritik değil). Hata:`,
+          `[${requestId}] UYARI: last_active_at güncellenemedi.`,
           updateError
         );
         finalUser = existingUser;
       } else {
         finalUser = updatedUser;
         console.log(
-          `[${requestId}] Kullanıcının (ID: ${existingUser.id}) last_active alanı başarıyla güncellendi. Güncel kullanıcı:`,
+          `[${requestId}] Kullanıcı güncellendi.`,
           updatedUser
         );
       }
-    } else if (
-      userFetchError &&
-      userFetchError.code === "PGRST116"
-    ) {
+    } else {
+      // 6c. Yeni Kullanıcı
       console.log(
-        `[${requestId}] Adım 5c: Kullanıcı mevcut değil (PGRST116). Yeni kullanıcı oluşturuluyor. Cüzdan Adresi: ${wallet_address}`
+        `[${requestId}] Adım 5c: Yeni kullanıcı oluşturuluyor.`
       );
-      const newUserPayload = {
-        wallet_address: wallet_address,
-        last_active: nowISO,
-        clicks: 0,
+      const newUserPayload: Omit<
+        Users,
+        "id" | "created_at"
+      > & {
+        last_active_at: string;
+        created_at: string;
+      } = {
+        wallet_address: walletAddress,
         score: 0,
-        max_clicks: 0, // veya uygulamanız için mantıklı bir başlangıç değeri
+        daily_clicks: 100,
+        daily_clicks_available: 100,
+        purchased_clicks: 0,
+        purchased_clicks_used: 0,
+        referrer_wallet_address:
+          referrerWalletAddress &&
+          referrerWalletAddress !== walletAddress
+            ? referrerWalletAddress
+            : null,
+        referral_bonus_score: 0,
+        last_active_at: nowISO,
+        created_at: nowISO,
       };
       console.log(
-        `[${requestId}] Yeni kullanıcı için payload:`,
+        `[${requestId}] Yeni kullanıcı payload:`,
         newUserPayload
       );
 
@@ -292,17 +275,13 @@ export async function POST(req: NextRequest) {
         await supabase
           .from("users")
           .insert(newUserPayload)
-          .select(
-            "id, wallet_address, last_active, created_at, clicks, score, max_clicks"
-          )
+          .select(selectFields)
           .single();
 
       if (insertError || !newUser) {
         console.error(
-          `[${requestId}] HATA: Yeni kullanıcı oluşturma başarısız. Hata:`,
-          insertError,
-          "Dönen kullanıcı:",
-          newUser
+          `[${requestId}] HATA: Yeni kullanıcı oluşturma başarısız.`,
+          insertError
         );
         return NextResponse.json(
           {
@@ -314,28 +293,14 @@ export async function POST(req: NextRequest) {
       }
       finalUser = newUser;
       console.log(
-        `[${requestId}] Yeni kullanıcı başarıyla oluşturuldu:`,
+        `[${requestId}] Yeni kullanıcı oluşturuldu:`,
         newUser
-      );
-    } else {
-      console.error(
-        `[${requestId}] HATA: Kullanıcı işleme sırasında beklenmedik bir durum oluştu. userFetchError:`,
-        userFetchError,
-        `existingUser:`,
-        existingUser
-      );
-      return NextResponse.json(
-        {
-          error:
-            "Kullanıcı işlenirken beklenmedik bir sunucu hatası oluştu.",
-        },
-        { status: 500 }
       );
     }
 
-    // 6. Son Kullanıcı Verisi Kontrolü
+    // 7. Kullanıcı Verisi Kontrolü
     console.log(
-      `[${requestId}] Adım 6: Son kullanıcı verisi (finalUser) kontrol ediliyor.`
+      `[${requestId}] Adım 6: Kullanıcı verisi kontrol ediliyor.`
     );
     if (
       !finalUser ||
@@ -343,41 +308,45 @@ export async function POST(req: NextRequest) {
       !finalUser.wallet_address
     ) {
       console.error(
-        `[${requestId}] HATA: Son kullanıcı verisi (finalUser) eksik veya null. finalUser:`,
+        `[${requestId}] HATA: Kullanıcı verisi eksik.`,
         finalUser
       );
       return NextResponse.json(
-        {
-          error: "Kullanıcı verisi işlenemedi veya eksik.",
-        },
+        { error: "Kullanıcı verisi işlenemedi." },
         { status: 500 }
       );
     }
-    console.log(
-      `[${requestId}] Son kullanıcı verisi geçerli. Kullanıcı ID: ${finalUser.id}`
-    );
+    console.log(`[${requestId}] Kullanıcı verisi geçerli.`);
 
-    // 7. Yanıt İçin Kullanıcı Objesi Hazırlama
+    // 8. Yanıt Kullanıcı Objesi
     console.log(
-      `[${requestId}] Adım 7: Yanıt için kullanıcı objesi (responseUser) hazırlanıyor.`
+      `[${requestId}] Adım 7: Yanıt objesi hazırlanıyor.`
     );
     const responseUser: Users = {
-      id: finalUser.id,
-      wallet_address: finalUser.wallet_address,
-      last_active: finalUser.last_active || nowISO,
-      created_at: finalUser.created_at || nowISO,
-      clicks: finalUser.clicks ?? 0,
+      id: finalUser.id!,
+      wallet_address: finalUser.wallet_address!,
       score: finalUser.score ?? 0,
-      max_clicks: finalUser.max_clicks ?? 0,
+      daily_clicks: finalUser.daily_clicks ?? 100,
+      daily_clicks_available:
+        finalUser.daily_clicks_available ?? 100,
+      purchased_clicks: finalUser.purchased_clicks ?? 0,
+      purchased_clicks_used:
+        finalUser.purchased_clicks_used ?? 0,
+      referrer_wallet_address:
+        finalUser.referrer_wallet_address ?? null,
+      referral_bonus_score:
+        finalUser.referral_bonus_score ?? 0,
+      last_active_at: finalUser.last_active_at || nowISO,
+      created_at: finalUser.created_at || nowISO,
     };
     console.log(
-      `[${requestId}] Yanıt kullanıcı objesi (responseUser):`,
+      `[${requestId}] Yanıt objesi:`,
       responseUser
     );
 
-    // 8. JWT Oluşturma
+    // 9. JWT Oluşturma
     console.log(
-      `[${requestId}] Adım 8: JWT token oluşturuluyor.`
+      `[${requestId}] Adım 8: JWT oluşturuluyor.`
     );
     const tokenPayload = {
       sub: responseUser.id,
@@ -385,77 +354,38 @@ export async function POST(req: NextRequest) {
       userId: responseUser.id,
       address: responseUser.wallet_address,
     };
-    console.log(
-      `[${requestId}] JWT payload:`,
-      tokenPayload
-    );
-
     let token: string;
     try {
       token = jwt.sign(tokenPayload, JWT_SECRET, {
         expiresIn: "24h",
       });
-      console.log(
-        `[${requestId}] JWT token başarıyla oluşturuldu.`
-      );
+      console.log(`[${requestId}] JWT oluşturuldu.`);
     } catch (jwtSignError: any) {
       console.error(
-        `[${requestId}] HATA: JWT token oluşturulurken hata. JWT_SECRET: ${
-          JWT_SECRET
-            ? "Mevcut (uzunluk: " + JWT_SECRET.length + ")"
-            : "Eksik!"
-        }`,
-        {
-          name: jwtSignError.name,
-          message: jwtSignError.message,
-          stack: jwtSignError.stack,
-        }
+        `[${requestId}] HATA: JWT oluşturma hatası.`,
+        jwtSignError
       );
       return NextResponse.json(
         {
-          error: "Token oluşturma sırasında sunucu hatası.",
+          error: "Token oluşturma hatası.",
           details: jwtSignError.message,
         },
         { status: 500 }
       );
     }
 
-    // 9. Başarılı Yanıt Dönme
+    // 10. Yanıt
     console.log(
-      `[${requestId}] Adım 9: Başarılı yanıt (token ve kullanıcı bilgisi) dönülüyor.`
+      `[${requestId}] Adım 9: Başarılı yanıt dönülüyor.`
     );
     console.log(
-      `[${requestId}] ========== API /api/auth/wallet POST İSTEĞİ BAŞARIYLA TAMAMLANDI ==========`
+      `[${requestId}] ========== API /api/auth/wallet POST TAMAMLANDI ==========`
     );
-    return NextResponse.json({
-      token,
-      user: responseUser,
-    });
+    return NextResponse.json({ token, user: responseUser });
   } catch (e: any) {
-    console.error(
-      `[${requestId}] !!!!! API /api/auth/wallet GENEL HATA YAKALANDI !!!!!`,
-      {
-        name: e.name,
-        message: e.message,
-        stack: e.stack,
-        details: e,
-      }
-    );
-    if (e instanceof SyntaxError) {
-      return NextResponse.json(
-        {
-          error: "Geçersiz JSON verisi (genel catch).",
-          details: e.message,
-        },
-        { status: 400 }
-      );
-    }
+    console.error(`[${requestId}] GENEL HATA:`, e);
     return NextResponse.json(
-      {
-        error:
-          "Giriş işlemi sırasında beklenmedik bir dahili sunucu hatası oluştu.",
-        details: e.message,
-      },
+      { error: "Sunucu hatası.", details: e.message },
       { status: 500 }
     );
   }
