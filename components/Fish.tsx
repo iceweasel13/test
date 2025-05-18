@@ -170,7 +170,7 @@ const FishClicker = () => {
           );
       }
 
-      setScale((prev) => Math.min(prev + 0.1, 1.5)); // Maksimum scale'i biraz düşürdüm, 3 çok büyük olabilir
+      setScale((prev) => Math.min(prev + 0.1, 3)); // Maksimum scale'i biraz düşürdüm, 3 çok büyük olabilir
 
       if (shrinkInterval.current) {
         clearInterval(shrinkInterval.current);
@@ -389,7 +389,7 @@ const FishClicker = () => {
           onAnimationComplete={() =>
             removeBubble(bubble.id)
           }
-          className="absolute rounded-full bg-blue-400/40 pointer-events-none"
+          className="absolute rounded-full bg-blue-400/40 pointer-events-none z-30"
           style={{
             top: bubble.y,
             left: bubble.x,
