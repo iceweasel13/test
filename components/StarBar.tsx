@@ -1,7 +1,8 @@
 "use client";
 
+import { useClickStore } from "@/lib/stores/clickStore";
 import { useAuthUser } from "@/hooks/useAuthUser";
-import { formatAndDivideNumber } from "@/lib/utils"; // formatAndDivideNumber fonksiyonunun yolu
+import { formatAndDivideNumber } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Alert,
@@ -14,16 +15,15 @@ import {
 import React from "react";
 
 const StarBar = () => {
-  const { user, isLoading, error } = useAuthUser();
+  const { user, pendingClicks } = useClickStore();
+  const { isLoading, error } = useAuthUser();
 
   // Yükleme durumu
   if (isLoading) {
     return (
-      <div className="bg-blue-200 hover:bg-blue-300 rounded-full p-4.5">
-        <Skeleton className="w-5 h-5 md:w-6 md:h-6 rounded-full" />{" "}
-        {/* Yıldız için */}
-        <Skeleton className="w-12 h-6 md:w-14 md:h-7 justify-center items-center" />{" "}
-        {/* Puan için */}
+      <div className="bg-blue-200 hover:bg-blue-300 rounded-full p-4.5 flex items-center space-x-2">
+        <Skeleton className="w-5 h-5 md:w-6 md:h-6 rounded-full" />
+        <Skeleton className="w-12 h-6 md:w-14 md:h-7" />
       </div>
     );
   }
@@ -50,14 +50,14 @@ const StarBar = () => {
     return (
       <div className="flex items-center space-x-2 text-sm md:text-base bg-blue-200 hover:bg-blue-300 rounded-full p-4.5">
         <FaExclamationCircle className="w-4 h-4 md:w-5 md:h-5" />
-        <p></p>
+        <p className="text-white">Giriş yapın</p>
       </div>
     );
   }
 
-  // Puan formatlama
+  // Puan formatlama (score + pendingClicks)
   const displayScore = formatAndDivideNumber(
-    user.score ?? 0
+    (user.score ?? 0) + pendingClicks
   );
 
   return (

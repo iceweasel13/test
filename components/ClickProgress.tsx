@@ -2,14 +2,20 @@
 
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useClickStore } from "@/lib/stores/clickStore";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import React from "react";
 
 const ClickProgress = () => {
-  const { user, isLoading, error } = useAuthUser();
+  const { user, pendingClicks } = useClickStore();
+  const { isLoading, error } = useAuthUser();
 
   // Kullanılan ve toplam click'ler
-  const usedClicks = user?.purchased_clicks_used ?? 0;
+  const usedClicks =
+    (user?.purchased_clicks_used ?? 0) +
+    ((user?.daily_clicks ?? 0) -
+      (user?.daily_clicks_available ?? 0)) +
+    pendingClicks;
   const totalClicks =
     (user?.daily_clicks ?? 0) +
     (user?.purchased_clicks ?? 0);
@@ -24,7 +30,7 @@ const ClickProgress = () => {
   if (isLoading) {
     return (
       <div className="w-full max-w-md mx-auto px-4">
-        <Skeleton className="h-8 md:h-12 w-full rounded-full" />
+        <Skeleton className="h-8 md:h-12 w-full bg-blue-200 rounded-full" />
       </div>
     );
   }
