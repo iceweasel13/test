@@ -12,6 +12,7 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { FC } from "react";
+
 export const {
   networkConfig,
   useNetworkVariable,
@@ -39,6 +40,7 @@ const Providers: FC<any> = ({ children }) => {
           storageKey="my-app-wallet-connection"
         >
           <AuthController />
+
           {children}
         </WalletProvider>
       </SuiClientProvider>

@@ -5,28 +5,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useClickStore } from "@/lib/stores/clickStore";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import React from "react";
+import { ERROR_CODES } from "../lib/errorCodes";
 
+/**
+ * Kullanıcının tıklama ilerlemesini gösteren bir ilerleme çubuğu bileşeni.
+ * Günlük ve satın alınmış tıklama haklarını, kullanılan tıklamaları ve bekleyen tıklamaları gösterir.
+ *
+ * @returns TSX.Element - Tıklama ilerleme çubuğu bileşeni
+ */
 const ClickProgress = () => {
   const { user, pendingClicks } = useClickStore();
   const { isLoading, error } = useAuthUser();
 
-  // Kullanılan ve toplam click'ler
-  const usedClicks =
+  /**
+   * Kullanılan ve toplam tıklama sayılarını hesaplar.
+   */
+  const usedClicks: number =
     (user?.purchased_clicks_used ?? 0) +
     ((user?.daily_clicks ?? 0) -
       (user?.daily_clicks_available ?? 0)) +
     pendingClicks;
-  const totalClicks =
+  const totalClicks: number =
     (user?.daily_clicks ?? 0) +
     (user?.purchased_clicks ?? 0);
 
-  // Yüzde hesaplama (güvenli)
-  const percentage =
+  /**
+   * İlerleme yüzdesini hesaplar.
+   */
+  const percentage: number =
     totalClicks > 0
       ? Math.min((usedClicks / totalClicks) * 100, 100)
       : 0;
 
-  // Yükleme durumu
+  /**
+   * Yükleme durumunda skeleton UI gösterir.
+   */
   if (isLoading) {
     return (
       <div className="w-full max-w-md mx-auto px-4">
@@ -35,8 +48,11 @@ const ClickProgress = () => {
     );
   }
 
-  // Hata durumu
+  /**
+   * Hata durumunda hata mesajını gösterir.
+   */
   if (error) {
+    console.log(`Hata Kodu: E007 - ${ERROR_CODES.E007}`);
     return (
       <div className="w-full max-w-md mx-auto px-4 text-center text-red-500">
         <p>{error}</p>
@@ -44,8 +60,11 @@ const ClickProgress = () => {
     );
   }
 
-  // Kullanıcı verisi yoksa
+  /**
+   * Kullanıcı verisi yoksa varsayılan bir UI gösterir.
+   */
   if (!user) {
+    console.log(`Hata Kodu: E009 - ${ERROR_CODES.E009}`);
     return (
       <div className="w-full max-w-md mx-auto px-4 text-center text-gray-500">
         <p>0/0</p>

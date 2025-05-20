@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "./ui/button";
 import {
@@ -18,34 +19,7 @@ import {
 import { useNetworkVariable } from "../app/providers";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { bcs } from "@mysten/sui/bcs";
-
-// Mock cards data
-const cards = [
-  {
-    id: 1,
-    name: "Mini Puff",
-    image: "/fish.png",
-    clicks: 1000,
-    price: 0.1,
-    card_type: 1,
-  },
-  {
-    id: 2,
-    name: "Mega Puff",
-    image: "/fish.png",
-    clicks: 3000,
-    price: 0.25,
-    card_type: 2,
-  },
-  {
-    id: 3,
-    name: "Wale Puff",
-    image: "/fish.png",
-    clicks: 7500,
-    price: 0.5,
-    card_type: 3,
-  },
-];
+import { cards } from "@/lib/data/cards.data";
 
 export function ShopDialog() {
   const packageId = useNetworkVariable("puffyPackageId");
@@ -203,10 +177,12 @@ export function ShopDialog() {
               );
 
               const purchasedClicks = parseInt(
-                mintEvent.parsedJson?.clicks as string
+                (mintEvent.parsedJson as { clicks: string })
+                  ?.clicks as string
               );
-              const walletAddressFromEvent = mintEvent
-                .parsedJson?.buyer as string;
+              const walletAddressFromEvent = (
+                mintEvent.parsedJson as { buyer: string }
+              )?.buyer as string;
 
               if (
                 isNaN(purchasedClicks) ||

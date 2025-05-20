@@ -11,3 +11,12 @@ export type Users = {
   last_active_at: string;
   created_at: string;
 };
+
+export interface Card {
+  id: number;
+  name: string;
+  image: string;
+  clicks: number;
+  price: number;
+  card_type: number;
+}

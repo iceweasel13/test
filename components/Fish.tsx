@@ -6,13 +6,20 @@ import {
   useEffect,
   useRef,
   useCallback,
-} from "react"; // useCallback eklendi
+} from "react";
 import { motion } from "framer-motion";
-import { useClickStore } from "@/lib/stores/clickStore"; // Store yolu doğru varsayılıyor
-import { useAuthUser } from "@/hooks/useAuthUser"; // Hook yolu doğru varsayılıyor
+import { useClickStore } from "@/lib/stores/clickStore";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { ERROR_CODES } from "../lib/errorCodes";
 
+/**
+ * Balık tıklama oyunu bileşeni. Kullanıcı balığa tıkladığında puan kazanır ve görsel/ses efektleri tetiklenir.
+ * Zustand store ve auth hook ile kullanıcı verilerini yönetir.
+ *
+ * @returns TSX.Element - Balık tıklama oyunu bileşeni
+ */
 const FishClicker = () => {
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number>(1);
   const [plusOnes, setPlusOnes] = useState<
     Array<{ id: number; x: number; y: number }>
   >([]);
@@ -23,71 +30,49 @@ const FishClicker = () => {
     null
   );
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // ID'ler için ayrı sayaçlar kullanmak daha güvenli olabilir,
-  // ancak şimdilik tek sayaç ve key'lerde ön ek kullanalım.
-  const animationIdRef = useRef(0);
-  const lastClickTimeRef = useRef(0); // Debouncing için
-
-  const {
-    incrementClick, // Zustand store'dan gelen fonksiyon
-    syncClicks, // Zustand store'dan gelen fonksiyon
-    lastClickTimestamp, // Zustand store'dan gelen state (15 saniye kuralı için)
-    setUser, // Zustand store'a kullanıcıyı set etmek için
-  } = useClickStore();
-
-  const {
-    user,
-    isLoading: authIsLoading,
-    error: authError,
-  } = useAuthUser(); // Auth hook'u
-
-  // Blub sesi için Audio nesnesini client-side'da oluştur
+  const animationIdRef = useRef<number>(0);
+  const lastClickTimeRef = useRef<number>(0);
   const blubSoundRef = useRef<HTMLAudioElement | null>(
     null
   );
 
-  useEffect(() => {
-    // Audio nesnesini sadece client tarafında oluştur
-    blubSoundRef.current = new Audio("/sounds/blub.mp3");
-    // Sesi ön yükleme (opsiyonel ama iyi bir pratik)
-    blubSoundRef.current.load();
-  }, []); // Boş bağımlılık dizisi, sadece component mount olduğunda çalışır
+  const {
+    incrementClick,
+    syncClicks,
+    lastClickTimestamp,
+    setUser,
+  } = useClickStore();
+  const {
+    user,
+    isLoading: authIsLoading,
+    error: authError,
+  } = useAuthUser();
 
-  // Kullanıcı verilerini store’a senkronize et
-  // Bu useEffect, useClickStore'un user state'ini günceller.
-  // useClickStore'un bu user'ı nasıl kullandığına bağlı olarak bu mantık store içine de taşınabilir.
+  /**
+   * Blub sesini client tarafında yükler.
+   */
   useEffect(() => {
-    setUser(user); // useClickStore içindeki setUser user objesini veya null/undefined almalı
-    if (user) {
-      console.log(
-        "[FishClicker] Kullanıcı bilgisi clickStore'a set edildi:",
-        {
-          wallet_address: user.wallet_address,
-          score: user.score,
-          daily_clicks_available:
-            user.daily_clicks_available,
-          purchased_clicks: user.purchased_clicks, // Bu, kalan satın alınmış haklar mı yoksa toplam mı? Store'un bunu nasıl işlediği önemli.
-          purchased_clicks_used: user.purchased_clicks_used,
-        }
-      );
-    } else if (authIsLoading) {
-      console.log(
-        "[FishClicker] Auth kullanıcısı yükleniyor..."
-      );
-    } else if (authError) {
-      console.log(
-        "[FishClicker] Auth kullanıcısı yüklenirken hata:",
-        authError
-      );
-    } else {
-      console.log(
-        "[FishClicker] Auth kullanıcısı yok (logout olmuş olabilir)."
-      );
+    blubSoundRef.current = new Audio("/sounds/blub.mp3");
+    blubSoundRef.current.load();
+  }, []);
+
+  /**
+   * Kullanıcı verilerini Zustand store'a senkronize eder.
+   */
+  useEffect(() => {
+    setUser(user);
+    if (authError) {
+      console.log(`Hata Kodu: E007 - ${ERROR_CODES.E007}`);
     }
   }, [user, authIsLoading, authError, setUser]);
 
-  // Tıklama işlemleri
+  /**
+   * Tıklama işlemini yönetir, görsel ve ses efektlerini tetikler.
+   *
+   * @param clientX - Tıklama konumu (X koordinatı)
+   * @param clientY - Tıklama konumu (Y koordinatı)
+   * @param isTrusted - Etkinliğin güvenilir olup olmadığını belirtir
+   */
   const handleInteractionStart = useCallback(
     (
       clientX: number,
@@ -95,22 +80,22 @@ const FishClicker = () => {
       isTrusted: boolean
     ) => {
       if (!isTrusted) {
-        console.warn(
-          "[FishClicker] Güvenilir olmayan tıklama olayı tespit edildi."
+        console.log(
+          `Hata Kodu: E001 - ${ERROR_CODES.E001}`
         );
         return;
       }
 
       if (authIsLoading) {
-        console.warn(
-          "[FishClicker] Tıklama reddedildi: Kullanıcı kimliği doğrulanıyor."
+        console.log(
+          `Hata Kodu: E002 - ${ERROR_CODES.E002}`
         );
         return;
       }
+
       if (authError || !user || !user.wallet_address) {
-        console.warn(
-          "[FishClicker] Tıklama reddedildi: Geçerli kullanıcı yok veya auth hatası.",
-          { user, authError }
+        console.log(
+          `Hata Kodu: E003 - ${ERROR_CODES.E003}`
         );
         alert(
           "Lütfen cüzdanınızı bağlayın veya giriş yapın."
@@ -120,19 +105,16 @@ const FishClicker = () => {
 
       const now = Date.now();
       if (now - lastClickTimeRef.current < 100) {
-        // 100ms debounce
-        console.warn(
-          "[FishClicker] Çok hızlı tıklama engellendi."
+        console.log(
+          `Hata Kodu: E004 - ${ERROR_CODES.E004}`
         );
         return;
       }
       lastClickTimeRef.current = now;
 
-      // Zustand store üzerinden tıklama izni ve işlemi
-      // incrementClick fonksiyonu, tıklama hakkı varsa true dönmeli ve store'u güncellemeli
       if (!incrementClick()) {
-        console.warn(
-          "[FishClicker] Tıklama reddedildi: Store tarafından limit aşıldı veya izin verilmedi."
+        console.log(
+          `Hata Kodu: E005 - ${ERROR_CODES.E005}`
         );
         alert(
           "Tıklama hakkınız bitti! Daha fazla tıklama için mağazadan satın alabilirsiniz."
@@ -140,7 +122,6 @@ const FishClicker = () => {
         return;
       }
 
-      // Görsel ve ses efektleri
       const boundingBox =
         containerRef.current?.getBoundingClientRect();
       if (!boundingBox) return;
@@ -159,28 +140,26 @@ const FishClicker = () => {
       ]);
 
       if (blubSoundRef.current) {
-        blubSoundRef.current.currentTime = 0; // Sesi başa sar
-        blubSoundRef.current
-          .play()
-          .catch((err) =>
-            console.error(
-              "[FishClicker] Ses oynatma hatası:",
-              err
-            )
+        blubSoundRef.current.currentTime = 0;
+        blubSoundRef.current.play().catch(() => {
+          console.log(
+            `Hata Kodu: E006 - ${ERROR_CODES.E006}`
           );
+        });
       }
 
-      setScale((prev) => Math.min(prev + 0.1, 3)); // Maksimum scale'i biraz düşürdüm, 3 çok büyük olabilir
-
+      setScale((prev) => Math.min(prev + 0.1, 3));
       if (shrinkInterval.current) {
         clearInterval(shrinkInterval.current);
         shrinkInterval.current = null;
       }
     },
-    [authIsLoading, authError, user, incrementClick] // setUser'ı bağımlılıklardan çıkardım, çünkü tıklama anında değişmemeli.
-    // lastClickTimeRef.current store'da değil, component içinde yönetiliyor.
+    [authIsLoading, authError, user, incrementClick]
   );
 
+  /**
+   * Tıklama sona erdiğinde balığın boyutunu kademeli olarak küçültür.
+   */
   const handleInteractionEnd = useCallback(() => {
     if (shrinkInterval.current) return;
 
@@ -198,7 +177,9 @@ const FishClicker = () => {
     }, 100);
   }, []);
 
-  // Event listener'ları yönetmek için useEffect
+  /**
+   * Tıklama ve dokunma olaylarını dinler, sürüklemeyi engeller.
+   */
   useEffect(() => {
     const currentContainer = containerRef.current;
     if (!currentContainer) return;
@@ -222,7 +203,6 @@ const FishClicker = () => {
       }
     };
 
-    // Non-passive event listener'lar ekle
     currentContainer.addEventListener(
       "mousedown",
       onMouseDown,
@@ -244,14 +224,10 @@ const FishClicker = () => {
     currentContainer.addEventListener(
       "mouseleave",
       handleInteractionEnd
-    ); // Fare dışarı çıktığında da küçülsün
-
-    // Sürüklemeyi engelle (resim için ayrıca draggable={false} var)
-    const preventDrag = (e: DragEvent) =>
-      e.preventDefault();
+    );
     currentContainer.addEventListener(
       "dragstart",
-      preventDrag
+      (e: DragEvent) => e.preventDefault()
     );
 
     return () => {
@@ -277,68 +253,63 @@ const FishClicker = () => {
       );
       currentContainer.removeEventListener(
         "dragstart",
-        preventDrag
+        (e: DragEvent) => e.preventDefault()
       );
       if (shrinkInterval.current) {
-        // Component unmount olurken interval'ı temizle
         clearInterval(shrinkInterval.current);
       }
     };
-  }, [handleInteractionStart, handleInteractionEnd]); // Bağımlılıkları ekledik
+  }, [handleInteractionStart, handleInteractionEnd]);
 
-  // 15 saniyelik periyodik senkronizasyon (Zustand store'daki lastClickTimestamp'a göre)
+  /**
+   * 15 saniyelik inaktivite sonrası tıklama verilerini senkronize eder.
+   */
   useEffect(() => {
     let syncTimer: NodeJS.Timeout;
 
     const checkAndSync = () => {
-      // lastClickTimestamp store'dan geliyor ve Date.now() ile karşılaştırılıyor.
-      // Eğer store'da lastClickTimestamp null veya 0 ise (henüz tıklama yoksa) sync çalışmaz.
       if (
         lastClickTimestamp &&
         Date.now() - lastClickTimestamp > 15000
       ) {
-        console.log(
-          "[FishClicker] 15 saniye inaktivite sonrası senkronizasyon tetikleniyor..."
-        );
-        syncClicks(); // Bu fonksiyonun store'da lastClickTimestamp'ı sıfırlaması/güncellemesi gerekir.
+        syncClicks();
       }
     };
 
-    // Hemen kontrol etme, belirli aralıklarla kontrol et.
-    // Örneğin her 5 saniyede bir kontrol et, eğer 15 saniye geçmişse sync et.
-    // Ya da daha iyisi, tıklama olduğunda (lastClickTimestamp güncellendiğinde) 15 saniyelik bir timeout başlatmak.
-    // Mevcut haliyle her saniye kontrol ediyor, bu da gereksiz olabilir.
-    // Şimdilik kullanıcının istediği gibi (her saniye kontrol) bırakıyorum, ama iyileştirilebilir.
-
     if (user) {
-      // Sadece kullanıcı varsa senkronizasyon timer'ını başlat
-      syncTimer = setInterval(checkAndSync, 5000); // Kontrol aralığını 5 saniyeye çıkardım
+      syncTimer = setInterval(checkAndSync, 5000);
     }
 
     return () => {
       if (syncTimer) clearInterval(syncTimer);
     };
-  }, [lastClickTimestamp, syncClicks, user]); // user eklendi, kullanıcı yoksa timer başlamasın.
+  }, [lastClickTimestamp, syncClicks, user]);
 
-  // Component unmount olurken kalan tıklamaları senkronize etme denemesi (isteğe bağlı)
+  /**
+   * Component unmount olduğunda kalan tıklamaları senkronize eder.
+   */
   useEffect(() => {
     return () => {
-      // Eğer `useClickStore` içinde `clicksThisSession` gibi birikmiş tıklama sayısı varsa
-      // ve bu sayı 0'dan büyükse, çıkarken senkronize etmeyi deneyebilirsin.
-      // const { clicksThisSession } = useClickStore.getState(); // Anlık state'i al
-      // if (clicksThisSession > 0) {
-      //   console.log("[FishClicker] Component unmount olurken senkronizasyon denemesi...");
-      //   syncClicks();
-      // }
+      syncClicks();
     };
-  }, [syncClicks]); // syncClicks değişmeyeceği için bu useEffect bir kere çalışır ve cleanup'ı ayarlar.
+  }, [syncClicks]);
 
+  /**
+   * Belirtilen +1 animasyonunu kaldırır.
+   *
+   * @param id - Kaldırılacak animasyonun kimliği
+   */
   const removePlusOne = (id: number) => {
     setPlusOnes((prev) =>
       prev.filter((item) => item.id !== id)
     );
   };
 
+  /**
+   * Belirtilen baloncuk animasyonunu kaldırır.
+   *
+   * @param id - Kaldırılacak baloncuğun kimliği
+   */
   const removeBubble = (id: number) => {
     setBubbles((prev) =>
       prev.filter((item) => item.id !== id)
@@ -350,28 +321,27 @@ const FishClicker = () => {
       ref={containerRef}
       className="relative inline-block mx-auto select-none cursor-pointer items-center justify-center"
       style={{
-        userSelect: "none", // CSS ile de seçimi engelle
-        touchAction: "manipulation", // Mobil'de çift tıklama zoom'unu vs. engelle
-        WebkitUserSelect: "none", // Safari için
-        MozUserSelect: "none", // Firefox için
-        msUserSelect: "none", // IE için
+        userSelect: "none",
+        touchAction: "manipulation",
+        WebkitUserSelect: "none",
+        MozUserSelect: "none",
+        msUserSelect: "none",
       }}
     >
-      {/* +1 Animasyonları */}
       {plusOnes.map((plusOne) => (
         <motion.div
-          key={`plus-${plusOne.id}`} // Benzersiz key
+          key={`plus-${plusOne.id}`}
           initial={{ y: 0, opacity: 1, scale: 1 }}
-          animate={{ y: -50, opacity: 0, scale: 1.3 }} // Biraz daha yukarı ve büyük
+          animate={{ y: -50, opacity: 0, scale: 1.3 }}
           transition={{ duration: 0.7, ease: "easeOut" }}
           onAnimationComplete={() =>
             removePlusOne(plusOne.id)
           }
-          className="absolute text-xl md:text-2xl font-bold text-yellow-300 pointer-events-none z-20" // z-index artırıldı, renk değişti
+          className="absolute text-xl md:text-2xl font-bold text-yellow-300 pointer-events-none z-20"
           style={{
             top: plusOne.y,
             left: plusOne.x,
-            transform: "translate(-50%, -100%)", // Tıklanan noktanın biraz daha yukarısından başlasın
+            transform: "translate(-50%, -100%)",
             textShadow: "0px 0px 5px rgba(0,0,0,0.5)",
           }}
         >
@@ -379,12 +349,11 @@ const FishClicker = () => {
         </motion.div>
       ))}
 
-      {/* Baloncuk Animasyonları */}
       {bubbles.map((bubble) => (
         <motion.div
-          key={`bubble-${bubble.id}`} // Benzersiz key
+          key={`bubble-${bubble.id}`}
           initial={{ scale: 0.1, opacity: 0.7 }}
-          animate={{ scale: 1.8, opacity: 0 }} // Daha belirgin bir büyüme
+          animate={{ scale: 1.8, opacity: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
           onAnimationComplete={() =>
             removeBubble(bubble.id)
@@ -393,28 +362,25 @@ const FishClicker = () => {
           style={{
             top: bubble.y,
             left: bubble.x,
-            width: Math.random() * 20 + 15, // Rastgele boyut (15-35px)
-            height: Math.random() * 20 + 15, // Rastgele boyut
+            width: Math.random() * 20 + 15,
+            height: Math.random() * 20 + 15,
             transform: "translate(-50%, -50%)",
-            zIndex: 5, // Artı birlerin arkasında kalması için düşürdüm, veya plusOnes'dan yüksek yapın (tercihe bağlı)
-            // Eğer baloncukların önde olması isteniyorsa zIndex: 25 gibi bir değer verilebilir.
-            // Şimdilik artı birlerin arkasında kalacak şekilde ayarladım (z-5).
-            // Kullanıcının isteğine göre bu z-index'i (plusOnes z-20 ise) z-25 yapalım.
+            zIndex: 5,
           }}
         />
       ))}
 
       <Image
-        src="/fish.png" // Bu dosyanın public klasöründe olduğundan emin ol
+        src="/fish.png"
         alt="Fish"
         width={200}
         height={200}
         draggable={false}
-        className="z-10 select-none pointer-events-none pl-3 relative" // Balık tıklama efektlerinin üzerinde olmalı
-        priority // Önemli bir resimse, öncelikli yükle
+        className="z-10 select-none pointer-events-none pl-3 relative"
+        priority
         style={{
           transform: `scale(${scale})`,
-          transition: "transform 0.05s linear", // Daha hızlı tepki
+          transition: "transform 0.05s linear",
         }}
       />
     </div>

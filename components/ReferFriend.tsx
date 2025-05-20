@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,40 +10,26 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter, // Kapat butonu için
-  DialogClose, // Kapat butonu için
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Referans linkini göstermek için
-import { useAuthUser } from "@/hooks/useAuthUser"; // Giriş yapmış kullanıcı bilgilerini almak için
+import { Input } from "@/components/ui/input";
+import { useAuthUser } from "@/hooks/useAuthUser";
 import {
   FaUserPlus,
   FaCopy,
   FaCheck,
-} from "react-icons/fa"; // İkonlar
-import { Skeleton } from "@/components/ui/skeleton"; // Yükleme durumu için
+} from "react-icons/fa";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ERROR_CODES } from "../lib/errorCodes";
+import { toast } from "sonner";
 
-// TODO: Backend'den toplam referans sayısını çekecek fonksiyon (şimdilik placeholder)
-async function fetchTotalReferrals(
-  userId: string
-): Promise<number> {
-  console.log(
-    "fetchTotalReferrals çağrıldı, userId:",
-    userId
-  );
-  // Bu fonksiyon, Supabase'den veya API endpoint'inizden
-  // belirtilen kullanıcının kaç kişiyi referans ettiğini çekmeli.
-  // Örneğin:
-  // const { count, error } = await supabase
-  //   .from('users')
-  //   .select('*', { count: 'exact', head: true })
-  //   .eq('referrer_wallet_address', currentUserWalletAddress); // veya referrer_id'ye göre
-  // if (error) throw error;
-  // return count ?? 0;
-  await new Promise((resolve) => setTimeout(resolve, 1000)); // Simüle edilmiş ağ gecikmesi
-  return Math.floor(Math.random() * 100); // Geçici rastgele bir sayı
-}
-
+/**
+ * Kullanıcıların referans linklerini paylaşabileceği ve referans istatistiklerini görebileceği bir diyalog bileşeni.
+ *
+ * @returns TSX.Element - Referans diyaloğu bileşeni
+ */
 export function ReferralDialog() {
   const { user, isLoading: isUserLoading } = useAuthUser();
   const [referralLink, setReferralLink] =
@@ -57,32 +45,69 @@ export function ReferralDialog() {
 
   useEffect(() => {
     if (user?.wallet_address) {
-      // Mevcut sayfanın URL'sini alıp ?ref=cuzdanAdresi ekleyelim
-      // Production'da site adınızı doğru almanız gerekebilir.
-      // Şimdilik window.location.origin kullanıyoruz.
-      const origin =
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://siteadi.com";
+      // Client-side'da olduğumuz için doğrudan window.location.origin kullanabiliriz.
+      // Farklı bir base URL gerekiyorsa NEXT_PUBLIC_BASE_URL gibi bir env var kullanın.
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        window.location.origin;
       setReferralLink(
-        `${origin}/?ref=${user.wallet_address}`
+        `${baseUrl}/?ref=${user.wallet_address}`
       );
+    } else {
+      setReferralLink(""); // Kullanıcı yoksa veya çıkış yapmışsa linki temizle
     }
-  }, [user]);
+  }, [user]); // user null olduğunda da çalışsın ve linki temizlesin diye user?.wallet_address yerine user
 
+  /**
+   * Diyalog açıldığında referans sayısını yükler.
+   */
   useEffect(() => {
-    if (dialogOpen && user?.id && totalReferrals === null) {
+    if (
+      dialogOpen &&
+      user?.wallet_address && // user?.id yerine wallet_address kullanmak daha tutarlı olabilir (API'nizin ne beklediğine bağlı)
+      totalReferrals === null
+    ) {
       const loadReferrals = async () => {
         setIsLoadingReferrals(true);
         try {
-          const count = await fetchTotalReferrals(user.id);
-          setTotalReferrals(count);
-        } catch (error) {
-          console.error(
-            "Referans sayısı çekilemedi:",
-            error
+          // API endpoint'ini ve gönderilen parametreyi kontrol et
+          const response = await fetch(
+            `/api/user/referrals?wallet_address=${encodeURIComponent(
+              user.wallet_address
+            )}` // API'nizin beklediği şekilde parametre gönderin
           );
-          setTotalReferrals(0); // Hata durumunda 0 göster
+
+          if (!response.ok) {
+            const errorData = await response
+              .json()
+              .catch(() => ({
+                message:
+                  "API yanıtı parse edilemedi veya JSON değil",
+              }));
+            // Error objesinin yapısına göre hata mesajını oluştur
+            const detailMessage =
+              errorData.details ||
+              errorData.error ||
+              errorData.message;
+            throw new Error(
+              `API isteği başarısız: ${response.status}${
+                detailMessage ? ` - ${detailMessage}` : ""
+              }`
+            );
+          }
+          const data = await response.json();
+          console.log(data);
+          setTotalReferrals(data.count); // API'nizin { count: number } formatında döndüğünü varsayıyoruz
+        } catch (error: any) {
+          console.error(
+            // console.error kullanmak daha uygun
+            `Hata Kodu: E020 - ${ERROR_CODES.E020}`,
+            error.message
+          );
+          toast.error(
+            `Referans sayısı alınamadı: ${error.message}`
+          ); // Kullanıcıya da toast ile bilgi verilebilir
+          setTotalReferrals(0);
         } finally {
           setIsLoadingReferrals(false);
         }
@@ -91,30 +116,42 @@ export function ReferralDialog() {
     }
   }, [dialogOpen, user, totalReferrals]);
 
-  const handleCopyToClipboard = async () => {
+  /**
+   * Referans linkini panoya kopyalar.
+   */
+  const handleCopyToClipboard = async (): Promise<void> => {
     if (!referralLink) return;
     try {
       await navigator.clipboard.writeText(referralLink);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000); // 2 saniye sonra "Kopyalandı" durumunu sıfırla
+      toast.success("Referral link copied to clipboard!"); // <-- TOAST'I BURADA ÇAĞIR
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
-      console.error("Referans linki kopyalanamadı: ", err);
-      // Kullanıcıya bir hata mesajı gösterebilirsiniz
+      console.error(
+        `Hata Kodu: E021 - ${ERROR_CODES.E021}`,
+        err
+      ); // err objesini de logla
+      toast.error("Failed to copy link. Please try again."); // Hata durumunda da kullanıcıya toast ile bilgi ver
     }
   };
-
+  /**
+   * Kullanıcı yüklenirken skeleton UI gösterir.
+   */
   if (isUserLoading) {
-    return <Skeleton className="h-10 w-36" />; // Buton için skeleton
+    return <Skeleton className="h-10 w-36" />;
   }
 
+  /**
+   * Kullanıcı giriş yapmamışsa diyalog butonunu gizler.
+   */
   if (!user) {
-    return null; // Kullanıcı giriş yapmamışsa butonu gösterme (veya "Giriş Yap"a yönlendir)
+    return null;
   }
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center justify-center   h-5  md:h-10 bg-blue-200 rounded-full p-4.5">
+        <Button className="flex items-center justify-center h-5 md:h-10 bg-blue-200 rounded-full p-4.5">
           <FaUserPlus className="mr-2 h-4 w-4" /> Refer a
           Friend
         </Button>
@@ -162,11 +199,8 @@ export function ReferralDialog() {
               <span className="sr-only">Copy link</span>
             </Button>
           </div>
-          {isCopied && (
-            <p className="text-xs text-green-400 mt-1">
-              Link copied to clipboard!
-            </p>
-          )}
+          {isCopied &&
+            toast("Your referral link has been copied")}
         </div>
 
         <div className="mt-6">
@@ -186,7 +220,6 @@ export function ReferralDialog() {
                 </span>
               )}
             </div>
-            {/* Buraya gelecekte referanslardan kazanılan toplam puan gibi başka istatistikler eklenebilir */}
           </div>
         </div>
         <DialogFooter className="mt-6">
@@ -204,3 +237,5 @@ export function ReferralDialog() {
     </Dialog>
   );
 }
+
+export default ReferralDialog;

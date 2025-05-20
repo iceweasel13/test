@@ -4,6 +4,7 @@ import "./globals.css";
 import "@mysten/dapp-kit/dist/index.css";
 import Providers from "./providers";
 import Navbar from "@/components/Navbar";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <Navbar />
           {children}
         </Providers>
+        <Toaster />
       </body>
     </html>
   );
