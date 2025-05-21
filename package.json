@@ -11,7 +11,7 @@
   "dependencies": {
     "@mysten/dapp-kit": "^0.16.3",
     "@mysten/sui": "^1.29.1",
-    "@radix-ui/react-dialog": "^1.1.13",
+    "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-progress": "^1.1.6",
     "@radix-ui/react-slot": "^1.2.2",
     "@supabase/ssr": "^0.6.1",

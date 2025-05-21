@@ -73,7 +73,7 @@ const ClickProgress = () => {
       <div className="relative">
         <Progress
           value={percentage}
-          className="h-8 md:h-12 w-full bg-navy-blue rounded-full border-2 border-base-blue"
+          className="h-10 md:h-12 w-full bg-navy-blue rounded-full border-2 border-base-blue"
         />
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm md:text-xl font-semibold text-base-white">
           {usedClicks}/{totalClicks}

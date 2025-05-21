@@ -146,3 +146,8 @@ body {
 #point {
   -webkit-text-stroke: 1px #34818f;
 }
+#connect-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

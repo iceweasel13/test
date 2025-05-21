@@ -1,3 +1,4 @@
+// iceweasel13/test/test-6598e12895d49aefb69be4cbf083c0cbca242735/components/ShopDialog.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "./ui/button";
@@ -291,30 +292,30 @@ export function ShopDialog() {
     }
   };
   if (!user) {
-    return <p></p>;
+    return null;
   }
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button className="flex items-center justify-center w-16 h-5 md:w-24 md:h-10  hover:bg-navy-blue bg-dark-blue text-base-white  rounded-xl p-6 text-sm md:text-md font-semibold border-2 border-base-blue">
+        <Button className="flex items-center justify-center h-5 md:h-10 hover:bg-navy-blue bg-dark-blue text-base-white  rounded-xl p-6 text-sm md:text-md font-semibold border-2 border-base-blue">
           <FaStore className="w-5 h-5 md:w-6 md:h-6" />
           Shop
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-blue-700 text-white max-w-xs sm:max-w-md md:max-w-3xl rounded-xl shadow-lg p-4 sm:p-6">
+      <DialogContent className="border-2 border-base-blue bg-dark-blue text-base-white max-w-xs sm:max-w-md md:max-w-3xl rounded-xl shadow-lg p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-xl sm:text-2xl text-white">
-            Puff Shop
+          <DialogTitle className="text-xl sm:text-2xl text-base-white">
+            Puff Click Shop
           </DialogTitle>
-          <DialogDescription className="text-white/80 text-sm sm:text-base">
-            Bir puff seç ve daha fazla click kazan!
+          <DialogDescription className="text-base-white/80 text-sm sm:text-base">
+            Choose a puff and earn more clicks!
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
           {cards.map((card) => (
             <div
               key={card.id}
-              className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4 flex flex-col items-center"
+              className="bg-navy-blue backdrop-blur-lg border border-base-blue text-base-white rounded-xl p-4 flex flex-col items-center"
             >
               <Image
                 src={card.image}
@@ -331,7 +332,7 @@ export function ShopDialog() {
               </p>
               <Button
                 variant="secondary"
-                className="bg-white text-black hover:bg-slate-100 text-sm sm:text-base"
+                className="bg-base-white text-dark-blue hover:bg-dark-blue hover:text-base-white text-sm sm:text-base"
                 onClick={() => purchaseCard(card)}
                 disabled={
                   isPending ||

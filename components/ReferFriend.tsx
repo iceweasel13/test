@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,7 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,31 +20,24 @@ import {
   FaCheck,
 } from "react-icons/fa";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ERROR_CODES } from "../lib/errorCodes";
 import { toast } from "sonner";
 
-/**
- * Kullanıcıların referans linklerini paylaşabileceği ve referans istatistiklerini görebileceği bir diyalog bileşeni.
- *
- * @returns TSX.Element - Referans diyaloğu bileşeni
- */
 export function ReferralDialog() {
-  const { user, isLoading: isUserLoading } = useAuthUser();
-  const [referralLink, setReferralLink] =
-    useState<string>("");
+  const { user } = useAuthUser();
+  const [referralLink, setReferralLink] = useState("");
   const [totalReferrals, setTotalReferrals] = useState<
     number | null
   >(null);
+  const [referralBonus, setReferralBonus] = useState<
+    number | null
+  >(null);
   const [isLoadingReferrals, setIsLoadingReferrals] =
-    useState<boolean>(false);
-  const [isCopied, setIsCopied] = useState<boolean>(false);
-  const [dialogOpen, setDialogOpen] =
-    useState<boolean>(false);
+    useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user?.wallet_address) {
-      // Client-side'da olduğumuz için doğrudan window.location.origin kullanabiliriz.
-      // Farklı bir base URL gerekiyorsa NEXT_PUBLIC_BASE_URL gibi bir env var kullanın.
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         window.location.origin;
@@ -54,99 +45,79 @@ export function ReferralDialog() {
         `${baseUrl}/?ref=${user.wallet_address}`
       );
     } else {
-      setReferralLink(""); // Kullanıcı yoksa veya çıkış yapmışsa linki temizle
+      setReferralLink("");
     }
-  }, [user]); // user null olduğunda da çalışsın ve linki temizlesin diye user?.wallet_address yerine user
+  }, [user]);
 
-  /**
-   * Diyalog açıldığında referans sayısını yükler.
-   */
   useEffect(() => {
     if (
       dialogOpen &&
-      user?.wallet_address && // user?.id yerine wallet_address kullanmak daha tutarlı olabilir (API'nizin ne beklediğine bağlı)
-      totalReferrals === null
+      user?.wallet_address &&
+      (totalReferrals === null || referralBonus === null)
     ) {
       const loadReferrals = async () => {
         setIsLoadingReferrals(true);
         try {
-          // API endpoint'ini ve gönderilen parametreyi kontrol et
           const response = await fetch(
             `/api/user/referrals?wallet_address=${encodeURIComponent(
               user.wallet_address
-            )}` // API'nizin beklediği şekilde parametre gönderin
+            )}`
           );
 
+          const data = await response.json();
+
           if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({
-                message:
-                  "API yanıtı parse edilemedi veya JSON değil",
-              }));
-            // Error objesinin yapısına göre hata mesajını oluştur
-            const detailMessage =
-              errorData.details ||
-              errorData.error ||
-              errorData.message;
             throw new Error(
-              `API isteği başarısız: ${response.status}${
-                detailMessage ? ` - ${detailMessage}` : ""
-              }`
+              data?.details ||
+                data?.error ||
+                "Bilinmeyen API hatası"
             );
           }
-          const data = await response.json();
-          console.log(data);
-          setTotalReferrals(data.count); // API'nizin { count: number } formatında döndüğünü varsayıyoruz
+
+          setTotalReferrals(data.count ?? 0);
+          setReferralBonus(data.referral_bonus_score ?? 0);
         } catch (error: any) {
-          console.error(
-            // console.error kullanmak daha uygun
-            `Hata Kodu: E020 - ${ERROR_CODES.E020}`,
-            error.message
-          );
           toast.error(
-            `Referans sayısı alınamadı: ${error.message}`
-          ); // Kullanıcıya da toast ile bilgi verilebilir
+            `Referans bilgileri alınamadı: ${error.message}`
+          );
           setTotalReferrals(0);
+          setReferralBonus(0);
         } finally {
           setIsLoadingReferrals(false);
         }
       };
+
       loadReferrals();
     }
-  }, [dialogOpen, user, totalReferrals]);
+  }, [dialogOpen, user, totalReferrals, referralBonus]);
 
-  /**
-   * Referans linkini panoya kopyalar.
-   */
-  const handleCopyToClipboard = async (): Promise<void> => {
+  const handleCopyToClipboard = async () => {
     if (!referralLink) return;
+
     try {
-      await navigator.clipboard.writeText(referralLink);
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(referralLink);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = referralLink;
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
       setIsCopied(true);
-      toast.success("Referral link copied to clipboard!"); // <-- TOAST'I BURADA ÇAĞIR
+      toast.success("Referral link copied to clipboard!");
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error(
-        `Hata Kodu: E021 - ${ERROR_CODES.E021}`,
-        err
-      ); // err objesini de logla
-      toast.error("Failed to copy link. Please try again."); // Hata durumunda da kullanıcıya toast ile bilgi ver
+    } catch (error: any) {
+      console.error("Copy failed:", error);
+      toast.error("Link kopyalanamadı: " + error.message);
     }
   };
-  /**
-   * Kullanıcı yüklenirken skeleton UI gösterir.
-   */
-  if (isUserLoading) {
-    return <Skeleton className="h-10 w-36" />;
-  }
-
-  /**
-   * Kullanıcı giriş yapmamışsa diyalog butonunu gizler.
-   */
-  if (!user) {
-    return null;
-  }
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -155,86 +126,78 @@ export function ReferralDialog() {
           <FaUserPlus className="h-4 w-4" /> Refer a Friend
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px] bg-gray-800 text-white border-gray-700">
+
+      <DialogContent className="border-2 border-base-blue bg-dark-blue text-base-white  rounded-xl shadow-lg p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-center text-blue-400">
-            Invite Friends, Earn Rewards!
+          <DialogTitle className="text-xl sm:text-2xl text-base-white">
+            Refer a Friend
           </DialogTitle>
-          <DialogDescription className="text-center text-gray-400 pt-2">
-            Share your unique referral link with friends.
-            When they join and play, you will earn bonus
-            rewards!
+          <DialogDescription className="text-base-white/80 text-sm sm:text-base">
+            Share your referral link and earn 5% bonuses!
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4">
-          <label
-            htmlFor="referralLink"
-            className="block text-sm font-medium text-gray-300 mb-1"
-          >
-            Your Referral Link:
-          </label>
-          <div className="flex items-center space-x-2">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
             <Input
-              id="referralLink"
-              type="text"
               value={referralLink}
               readOnly
-              className="bg-gray-700 border-gray-600 text-gray-200 focus-visible:ring-blue-500"
+              className="border-base-blue"
             />
             <Button
-              type="button"
-              size="icon"
-              variant="secondary"
+              className="bg-navy-blue hover:bg-base-blue"
               onClick={handleCopyToClipboard}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-              disabled={!referralLink}
             >
               {isCopied ? (
-                <FaCheck className="h-4 w-4" />
+                <FaCheck className="text-green-500" />
               ) : (
-                <FaCopy className="h-4 w-4" />
+                <FaCopy />
               )}
-              <span className="sr-only">Copy link</span>
             </Button>
           </div>
-          {isCopied &&
-            toast("Your referral link has been copied")}
+
+          {isLoadingReferrals ? (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-6 w-[200px]" />
+              <Skeleton className="h-6 w-[150px]" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 ">
+              <div className="flex flex-col mt-2 space-y-2">
+                <p className="text-sm font-medium text-left">
+                  Total referrals
+                </p>
+                <div className="flex items-center justify-center">
+                  <Input
+                    readOnly
+                    className="text-center border bg-navy-blue border-base-blue text-2xl font-extrabold"
+                    value={totalReferrals ?? 0}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col mt-2 space-y-2 ">
+                <p className="text-sm font-medium text-left ">
+                  Referral bonus score
+                </p>
+                <div className="flex items-center justify-center">
+                  <Input
+                    readOnly
+                    className="text-center border border-base-blue bg-navy-blue text-2xl font-extrabold"
+                    value={referralBonus ?? 0}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-blue-300 mb-2">
-            Your Referral Stats
-          </h3>
-          <div className="bg-gray-700 p-4 rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-300">
-                Total Friends Referred:
-              </span>
-              {isLoadingReferrals ? (
-                <Skeleton className="h-6 w-10" />
-              ) : (
-                <span className="text-xl font-bold text-white">
-                  {totalReferrals ?? "N/A"}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <DialogFooter className="mt-6">
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className="text-gray-300 border-gray-600 hover:bg-gray-700"
-            >
-              Close
-            </Button>
-          </DialogClose>
+        <DialogFooter>
+          <Button onClick={() => setDialogOpen(false)}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
-export default ReferralDialog;

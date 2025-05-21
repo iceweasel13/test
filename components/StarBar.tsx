@@ -49,7 +49,7 @@ const StarBar = () => {
     (user?.score ?? 0) + pendingClicks;
 
   return (
-    <div className="flex items-center justify-center space-x-2 w-34 h-5 md:w-36 md:h-6  rounded-full p-4.5 text-xl md:text-2xl font-extrabold text-base-white ">
+    <div className="flex items-center justify-center space-x-2  rounded-full  text-xl md:text-2xl font-extrabold text-base-white ">
       <Image
         alt={""}
         height={40}
