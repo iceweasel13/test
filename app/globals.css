@@ -133,3 +133,16 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@theme {
+  --color-base-blue: #02cad9;
+  --color-navy-blue: #34818f;
+  --color-dark-blue: #014f75;
+  --color-base-white: #f3edeb;
+}
+#example {
+  -webkit-text-stroke: 0.5px #34818f;
+}
+#point {
+  -webkit-text-stroke: 1px #34818f;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthController } from "@/hooks/AuthController";
+import { oceanTheme } from "@/themes/oceanTheme";
 import {
   createNetworkConfig,
   SuiClientProvider,
@@ -38,6 +39,7 @@ const Providers: FC<any> = ({ children }) => {
         <WalletProvider
           autoConnect={true}
           storageKey="my-app-wallet-connection"
+          theme={oceanTheme}
         >
           <AuthController />
 

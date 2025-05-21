@@ -2,9 +2,9 @@
 
 import { useClickStore } from "@/lib/stores/clickStore";
 import { useAuthUser } from "@/hooks/useAuthUser";
-import { formatAndDivideNumber } from "@/lib/utils";
+
 import { Skeleton } from "@/components/ui/skeleton";
-import { FaStar } from "react-icons/fa";
+import Image from "next/image";
 import React from "react";
 
 /**
@@ -29,17 +29,37 @@ const StarBar = () => {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="m-0">
+        <Image
+          className="stroke-navy-blue scale-75"
+          height={40}
+          width={200}
+          alt=""
+          src={"/logos.png"}
+        />
+      </div>
+    );
+  }
   /**
    * Kullanıcının toplam puanını (score + bekleyen tıklamalar) formatlar.
    */
-  const displayScore: string = formatAndDivideNumber(
-    (user?.score ?? 0) + pendingClicks
-  );
+  const displayScore: number =
+    (user?.score ?? 0) + pendingClicks;
 
   return (
-    <div className="flex items-center justify-center space-x-2 w-22 h-5 md:w-26 md:h-6 bg-blue-200 hover:bg-blue-300 rounded-full p-4.5">
-      <FaStar className="text-yellow-400 w-5 h-5 md:w-6 md:h-6" />
-      <p className="text-sm md:text-lg font-semibold text-white truncate">
+    <div className="flex items-center justify-center space-x-2 w-34 h-5 md:w-36 md:h-6  rounded-full p-4.5 text-xl md:text-2xl font-extrabold text-base-white ">
+      <Image
+        alt={""}
+        height={40}
+        width={40}
+        src={"/star.png"}
+      />
+      <p
+        id="point"
+        className="text-2xl md:text-4xl font-extrabold text-base-white pb-1  "
+      >
         {displayScore}
       </p>
     </div>

@@ -290,15 +290,15 @@ export function ShopDialog() {
       );
     }
   };
-
+  if (!user) {
+    return <p></p>;
+  }
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button className="flex items-center justify-center w-16 h-5 md:w-24 md:h-10 bg-blue-200 rounded-full p-4.5">
+        <Button className="flex items-center justify-center w-16 h-5 md:w-24 md:h-10  hover:bg-navy-blue bg-dark-blue text-base-white  rounded-xl p-6 text-sm md:text-md font-semibold border-2 border-base-blue">
           <FaStore className="w-5 h-5 md:w-6 md:h-6" />
-          <span className="hidden md:inline text-sm md:text-lg font-semibold text-white">
-            Shop
-          </span>
+          Shop
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-blue-700 text-white max-w-xs sm:max-w-md md:max-w-3xl rounded-xl shadow-lg p-4 sm:p-6">

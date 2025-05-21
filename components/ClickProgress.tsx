@@ -65,11 +65,7 @@ const ClickProgress = () => {
    */
   if (!user) {
     console.log(`Hata Kodu: E009 - ${ERROR_CODES.E009}`);
-    return (
-      <div className="w-full max-w-md mx-auto px-4 text-center text-gray-500">
-        <p>0/0</p>
-      </div>
-    );
+    return <p></p>;
   }
 
   return (
@@ -77,9 +73,9 @@ const ClickProgress = () => {
       <div className="relative">
         <Progress
           value={percentage}
-          className="h-8 md:h-12 w-full bg-blue-200 rounded-full"
+          className="h-8 md:h-12 w-full bg-navy-blue rounded-full border-2 border-base-blue"
         />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm md:text-xl font-semibold text-white">
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm md:text-xl font-semibold text-base-white">
           {usedClicks}/{totalClicks}
         </span>
       </div>

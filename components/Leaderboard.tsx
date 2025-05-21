@@ -1,36 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-"use client";
-
-import { useState, useEffect } from "react";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { ERROR_CODES } from "@/lib/errorCodes";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
-  DialogFooter,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
   DialogClose,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useAuthUser } from "@/hooks/useAuthUser";
-import {
-  FaUserPlus,
-  FaCopy,
-  FaCheck,
-} from "react-icons/fa";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ERROR_CODES } from "../lib/errorCodes";
+} from "@radix-ui/react-dialog";
+import React, { useEffect, useState } from "react";
+import { FaCheck, FaCopy, FaMedal } from "react-icons/fa";
 import { toast } from "sonner";
+import { Button } from "./ui/button";
+import { DialogHeader, DialogFooter } from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Skeleton } from "./ui/skeleton";
 
-/**
- * Kullanıcıların referans linklerini paylaşabileceği ve referans istatistiklerini görebileceği bir diyalog bileşeni.
- *
- * @returns TSX.Element - Referans diyaloğu bileşeni
- */
-export function ReferralDialog() {
+const Leaderboard = () => {
   const { user, isLoading: isUserLoading } = useAuthUser();
   const [referralLink, setReferralLink] =
     useState<string>("");
@@ -98,6 +84,7 @@ export function ReferralDialog() {
           const data = await response.json();
           console.log(data);
           setTotalReferrals(data.count); // API'nizin { count: number } formatında döndüğünü varsayıyoruz
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
           console.error(
             // console.error kullanmak daha uygun
@@ -151,8 +138,8 @@ export function ReferralDialog() {
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center justify-center h-5 md:h-10 hover:bg-navy-blue bg-dark-blue text-base-white  rounded-xl p-6 text-sm md:text-md font-semibold border-2 border-base-blue">
-          <FaUserPlus className="h-4 w-4" /> Refer a Friend
+        <Button className="flex items-center justify-center h-5 md:h-10  hover:bg-navy-blue bg-dark-blue text-base-white  rounded-xl p-6 text-sm md:text-md font-semibold border-2 border-base-blue">
+          <FaMedal className=" h-4 w-4" /> Leaderboard
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px] bg-gray-800 text-white border-gray-700">
@@ -235,6 +222,6 @@ export function ReferralDialog() {
       </DialogContent>
     </Dialog>
   );
-}
+};
 
-export default ReferralDialog;
+export default Leaderboard;
