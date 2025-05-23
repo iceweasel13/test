@@ -10,7 +10,7 @@ interface UseAuthUserReturn {
   user: Users | null;
   isLoading: boolean;
   error: string | null;
-  refetchUser: () => void;
+  refetchUser: () => Promise<Users | null>; // Return type added for clarity
 }
 
 export const useAuthUser = (): UseAuthUserReturn => {
@@ -24,14 +24,15 @@ export const useAuthUser = (): UseAuthUserReturn => {
     setError(null);
 
     if (!token) {
-      setError("");
+      setError(""); // Token yoksa hata mesajını temizle, kullanıcı giriş yapmamış demektir
       setIsLoading(false);
       setUser(null);
-      return;
+      return null; // Return null if no token
     }
 
     try {
-      const response = await fetch("/api/user/me", {
+      // Endpoint'i /api/user/refresh olarak değiştirdik
+      const response = await fetch("/api/user/refresh", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -42,6 +43,7 @@ export const useAuthUser = (): UseAuthUserReturn => {
       const responseData = await response.json();
 
       if (!response.ok) {
+        // Eğer token geçerli değilse veya sunucudan başka bir hata dönerse
         throw new Error(
           responseData.error ||
             `Sunucudan hata (${response.status})`
@@ -49,12 +51,14 @@ export const useAuthUser = (): UseAuthUserReturn => {
       }
 
       setUser(responseData as Users);
+      return responseData as Users; // Return the fetched user data
     } catch (err: any) {
       console.error("Kullanıcı verisi çekme hatası:", err);
       setError(
         err.message || "Kullanıcı verileri çekilemedi."
       );
       setUser(null);
+      return null; // Return null on error
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +72,6 @@ export const useAuthUser = (): UseAuthUserReturn => {
     user,
     isLoading,
     error,
-    refetchUser: fetchUserData,
+    refetchUser: fetchUserData, // `refetchUser` artık `WorkspaceUserData` fonksiyonumuz.
   };
 };

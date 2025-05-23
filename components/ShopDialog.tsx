@@ -18,36 +18,46 @@ import {
   useCurrentAccount,
 } from "@mysten/dapp-kit";
 import { useNetworkVariable } from "../app/providers";
-import { useAuthUser } from "../hooks/useAuthUser";
+import { useAuthUser } from "../hooks/useAuthUser"; // useAuthUser'ı import et ve refetchUser'ı alacağız
 import { bcs } from "@mysten/sui/bcs";
 import { cards } from "@/lib/data/cards.data";
+import { toast } from "sonner"; // Sonner toast bildirimleri için import edildi
+import { useClickStore } from "@/lib/stores/clickStore"; // useClickStore'u import et ve setUser'ı kullanacağız
 
 export function ShopDialog() {
   const packageId = useNetworkVariable("puffyPackageId");
   const suiClient = useSuiClient();
-  const { user, isLoading: authLoading } = useAuthUser();
+  // useAuthUser'dan `refetchUser` fonksiyonunu alıyoruz. Bu fonksiyon, kullanıcının en güncel verilerini API'den çekmek için kullanılır.
+  const {
+    user,
+    isLoading: authLoading,
+    refetchUser,
+  } = useAuthUser();
   const account = useCurrentAccount();
   const { mutate: signAndExecute, isPending } =
     useSignAndExecuteTransaction();
+  // useClickStore'dan `setUser` fonksiyonunu alıyoruz. Bu fonksiyon, `ClickStore`'daki kullanıcı state'ini güncelleyecektir.
+  const { setUser: setClickStoreUser } = useClickStore();
 
   const purchaseCard = async (card: {
-    id: number; // card objesine id ekledim, loglama için faydalı olabilir
+    id: number;
     card_type: number;
     name: string;
     clicks: number;
     price: number;
   }) => {
+    // Ön koşul kontrolleri
     if (!user) {
-      alert("Lütfen önce giriş yapın.");
+      toast.error("Please log in first.");
       return;
     }
     if (!account) {
-      alert("Lütfen cüzdanınızı bağlayın.");
+      toast.error("Please connect your wallet.");
       return;
     }
     if (user.wallet_address !== account.address) {
-      alert(
-        "Giriş yapılan cüzdan adresi ile bağlı cüzdan adresi uyuşmuyor."
+      toast.error(
+        "The logged-in wallet address does not match the connected wallet address."
       );
       return;
     }
@@ -57,71 +67,54 @@ export function ShopDialog() {
         packageId.replace(/^0x/, "")
       )
     ) {
-      alert(
-        "Geçersiz akıllı sözleşme (package) adresi. Lütfen yapılandırmayı kontrol edin."
+      toast.error(
+        "Invalid smart contract (package) address. Please check the configuration."
       );
-      console.error("Invalid packageId:", packageId);
       return;
     }
 
-    console.log(
-      `[ShopDialog] Purchasing card: ${card.name} (Type: ${card.card_type}, Price: ${card.price} SUI)`
+    const toastId = toast.loading(
+      `Initiating purchase for ${card.name}...`
     );
-    console.log(
-      `[ShopDialog] User: ${user.wallet_address}, Current Account: ${account.address}`
-    );
-    console.log(`[ShopDialog] Package ID: ${packageId}`);
 
     try {
-      const tx = new Transaction(); // Yeni Transaction bloğu oluştur
+      const tx = new Transaction();
 
       const cardPriceInMist = BigInt(
         Math.ceil(card.price * 1_000_000_000)
-      ); // Fiyatı MIST'e çevir
-      const estimatedGasFee = BigInt(20_000_000); // Tahmini gas ücreti (0.02 SUI), kendi işlemine göre ayarla
+      );
+      const estimatedGasFee = BigInt(20_000_000);
 
-      // Gas bütçesini ayarla (işlemin maksimum ne kadar gas tüketebileceği)
       tx.setGasBudget(estimatedGasFee);
 
-      // Ödeme için gerekli SUI miktarını ana gas coin'inden ayır.
-      // `tx.gas` özel bir inputtur ve cüzdandaki SUI coinlerini temsil eder.
-      // `signAndExecuteTransaction` bu `tx.gas`'ı cüzdandaki uygun SUI'lerle çözümler.
       const [paymentCoin] = tx.splitCoins(tx.gas, [
         cardPriceInMist,
       ]);
 
-      // Akıllı sözleşmedeki mint_nft fonksiyonunu çağır
       tx.moveCall({
         target: `${packageId}::puffy_nft::mint_nft`,
         arguments: [
-          tx.pure(bcs.u8().serialize(card.card_type)), // card_type'ı u8 olarak serialize et
-          paymentCoin, // Ödeme için ayrılan coin objesi
+          tx.pure(bcs.u8().serialize(card.card_type)),
+          paymentCoin,
         ],
       });
 
-      console.log(
-        "[ShopDialog] Transaction block prepared:",
-        JSON.stringify(tx.blockData, null, 2)
-      );
+      toast.loading("Signing and sending transaction...", {
+        id: toastId,
+      });
 
       signAndExecute(
         {
           transaction: tx,
-          // options: { showEffects: true, showEvents: true }, // Gerekirse işlem sonrası daha fazla detay için
         },
         {
           onSuccess: async (result) => {
-            // result tipi: { digest: string, certificate?: SuiTransactionBlockResponseOptions, effects?: SuiTransactionBlockResponseOptions }
-            console.log(
-              "[ShopDialog] Transaction signed and sent successfully! Digest:",
-              result.digest
-            );
-            alert(
-              `İşlem gönderildi! Digest: ${result.digest}. Zincir üzerinde onay bekleniyor...`
+            toast.loading(
+              "Transaction sent, awaiting confirmation on-chain...",
+              { id: toastId }
             );
 
             try {
-              // İşlemin zincir üzerinde sonucunu bekle ve detaylarını al
               const txDetails =
                 await suiClient.waitForTransaction({
                   digest: result.digest,
@@ -131,29 +124,18 @@ export function ShopDialog() {
                   },
                 });
 
-              console.log(
-                "[ShopDialog] Transaction details from waitForTransaction:",
-                txDetails
-              );
-
               if (
                 txDetails.effects?.status.status !==
                 "success"
               ) {
-                const errorMessage = `İşlem zincir üzerinde başarısız oldu. Hata: ${
+                const errorMessage = `Transaction failed on-chain. Error: ${
                   txDetails.effects?.status.error ||
-                  "Bilinmeyen hata"
+                  "Unknown error"
                 }`;
-                alert(errorMessage);
-                console.error(
-                  "[ShopDialog] On-chain transaction failed:",
-                  txDetails.effects?.status.error,
-                  txDetails
-                );
+                toast.error(errorMessage, { id: toastId });
                 return;
               }
 
-              // MintEvent'i bul
               const mintEvent = txDetails.events?.find(
                 (e: any) =>
                   e.type ===
@@ -161,21 +143,12 @@ export function ShopDialog() {
               );
 
               if (!mintEvent) {
-                alert(
-                  "Satın alma olayı (MintEvent) bulunamadı. İşlem başarılı olabilir, ancak beklenen olay yayınlanmadı."
+                toast.error(
+                  "Purchase event (MintEvent) not found. Transaction might be successful, but expected event was not emitted.",
+                  { id: toastId }
                 );
-                console.error(
-                  "[ShopDialog] Expected MintEvent not found. Available events:",
-                  txDetails.events
-                );
-                // Bu durumda backend'i yine de güncellemeyi veya NFT'nin kullanıcıya transfer olup olmadığını kontrol etmeyi düşünebilirsin.
                 return;
               }
-
-              console.log(
-                "[ShopDialog] MintEvent found:",
-                mintEvent.parsedJson
-              );
 
               const purchasedClicks = parseInt(
                 (mintEvent.parsedJson as { clicks: string })
@@ -189,17 +162,18 @@ export function ShopDialog() {
                 isNaN(purchasedClicks) ||
                 !walletAddressFromEvent
               ) {
-                alert(
-                  "Olay verisi ayrıştırılırken hata oluştu. Click sayısı güncellenemedi."
-                );
-                console.error(
-                  "[ShopDialog] Failed to parse clicks or buyer from MintEvent",
-                  mintEvent.parsedJson
+                toast.error(
+                  "Error parsing event data. Click count could not be updated on server.",
+                  { id: toastId }
                 );
                 return;
               }
 
-              // Backend'e satın alınan click sayısını güncelleme isteği
+              toast.loading(
+                "Updating clicks on server...",
+                { id: toastId }
+              );
+
               const updateResponse = await fetch(
                 "/api/user/purchaseClicks",
                 {
@@ -208,7 +182,7 @@ export function ShopDialog() {
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
-                    wallet_address: walletAddressFromEvent, // Event'ten gelen adresi kullan
+                    wallet_address: walletAddressFromEvent,
                     purchased_clicks: purchasedClicks,
                   }),
                 }
@@ -219,48 +193,46 @@ export function ShopDialog() {
                   .json()
                   .catch(() => ({
                     message:
-                      "Satın alma bilgisi sunucuda güncellenemedi (yanıt parse edilemedi).",
+                      "Failed to update purchase info on server (response could not be parsed).",
                   }));
-                alert(
-                  `Hata: ${
+                toast.error(
+                  `Error: ${
                     errorData.message ||
-                    "Satın alma bilgisi sunucuda güncellenemedi."
-                  }`
-                );
-                console.error(
-                  "[ShopDialog] Failed to update purchased clicks on backend:",
-                  errorData
+                    "Failed to update purchase info on server."
+                  }`,
+                  { id: toastId }
                 );
                 return;
               }
 
-              alert(
-                `${card.name} başarıyla satın alındı! Hesabınıza ${purchasedClicks} click eklendi.`
+              toast.success(
+                `${card.name} purchased successfully! ${purchasedClicks} clicks added to your account.`,
+                { id: toastId }
               );
-              console.log(
-                `[ShopDialog] ${card.name} purchased, ${purchasedClicks} clicks added for ${walletAddressFromEvent}.`
-              );
+
+              // **Ana Düzeltme:**
+              // 1. `refetchUser()` çağrısıyla `useAuthUser`'ın içindeki kullanıcı state'ini en güncel verilerle güncelleyelim.
+              const freshUser = await refetchUser(); // `useAuthUser`'dan dönen güncel kullanıcıyı alırız.
+              // 2. Eğer `refetchUser()` başarılı bir şekilde kullanıcı verisi döndürdüyse,
+              //    bu veriyi `useClickStore`'daki `user` state'ine set ederiz.
+              if (freshUser) {
+                setClickStoreUser(freshUser); // `useClickStore`'daki `user` state'ini günceller.
+              }
             } catch (waitError: any) {
-              alert(
-                `İşlem sonucu beklenirken bir hata oluştu: ${waitError.message}`
-              );
-              console.error(
-                "[ShopDialog] Error waiting for transaction or processing its result:",
-                waitError
+              toast.error(
+                `An error occurred while waiting for transaction result: ${waitError.message}`,
+                { id: toastId }
               );
             }
           },
           onError: (error: any) => {
-            // error tipi TRPCClientError olabilir veya DApp Kit'in kendi hata tipi
-            // Hata mesajının yapısını kontrol et
             let displayMessage =
-              "İşlem sırasında bir hata oluştu.";
+              "An error occurred during transaction.";
             if (error.message) {
               displayMessage = error.message;
             } else if (typeof error === "string") {
               displayMessage = error;
             }
-            // "No valid gas coins" hatasını daha spesifik yakala
             if (
               displayMessage.includes(
                 "No valid gas coins"
@@ -270,30 +242,27 @@ export function ShopDialog() {
               )
             ) {
               displayMessage =
-                "İşlem için cüzdanınızda yeterli SUI (gas ücreti için) bulunamadı. Lütfen bakiyenizi kontrol edin ve tekrar deneyin. Testnet kullanıyorsanız faucet kullanabilirsiniz.";
+                "Insufficient SUI in your wallet for gas fees. Please check your balance and try again. If you are on Testnet, you can use a faucet.";
             }
 
-            alert(`Hata: ${displayMessage}`);
-            console.error(
-              "[ShopDialog] Transaction signing/execution failed:",
-              error
-            );
+            toast.error(`Error: ${displayMessage}`, {
+              id: toastId,
+            });
           },
         }
       );
     } catch (error: any) {
-      alert(
-        `Transaction hazırlarken bir hata oluştu: ${error.message}`
-      );
-      console.error(
-        "[ShopDialog] Error preparing transaction:",
-        error
+      toast.error(
+        `An error occurred while preparing the transaction: ${error.message}`,
+        { id: toastId }
       );
     }
   };
+
   if (!user) {
     return null;
   }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -308,7 +277,9 @@ export function ShopDialog() {
             Puff Click Shop
           </DialogTitle>
           <DialogDescription className="text-base-white/80 text-sm sm:text-base">
-            Choose a puff and earn more clicks!
+            {isPending
+              ? "Transaction pending, please wait..."
+              : "Choose a puff and earn more clicks!"}
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
@@ -342,7 +313,7 @@ export function ShopDialog() {
                 }
               >
                 {isPending ? (
-                  <p>loading</p>
+                  <p>Loading...</p>
                 ) : (
                   `${card.price} SUI ile Satın Al`
                 )}

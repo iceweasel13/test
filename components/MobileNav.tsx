@@ -13,7 +13,6 @@ import { MenuIcon } from "lucide-react"; // Or any other hamburger icon you pref
 import ShopDialog from "./ShopDialog";
 import { ReferralDialog } from "./ReferFriend";
 import Leaderboard from "./Leaderboard";
-import { ConnectButton } from "@mysten/dapp-kit";
 import Image from "next/image";
 export function MobileNav() {
   return (
@@ -59,9 +58,6 @@ export function MobileNav() {
           <ReferralDialog />{" "}
           {/* ReferralDialog already includes a button and handles its own dialog */}
           {/* Connect Button (adjust styling for full width if needed) */}
-          <div className="w-full items-center flex justify-center">
-            <ConnectButton />
-          </div>
         </nav>
       </SheetContent>
     </Sheet>
