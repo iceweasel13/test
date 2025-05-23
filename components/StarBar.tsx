@@ -22,16 +22,22 @@ const StarBar = () => {
    */
   if (isLoading) {
     return (
-      <div className="bg-blue-200 hover:bg-blue-300 rounded-full  p-4.5 flex items-center space-x-2 w-22 h-5 md:w-26 md:h-6">
-        <Skeleton className="w-5 h-5 md:w-6 md:h-6 rounded-full" />
-        <Skeleton className="w-12 h-6 md:w-14 md:h-7" />
+      <div className="flex items-center justify-center space-x-2  rounded-full  text-xl md:text-2xl font-extrabold text-base-white ">
+        <Image
+          alt={""}
+          height={40}
+          width={40}
+          src={"/star.png"}
+        />
+
+        <Skeleton className="w-20 h-8" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="m-0">
+      <div className="">
         <Image
           className="stroke-navy-blue scale-75"
           height={40}

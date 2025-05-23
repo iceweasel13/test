@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 export function ReferralDialog() {
-  const { user } = useAuthUser();
+  const { user, isLoading } = useAuthUser();
   const [referralLink, setReferralLink] = useState("");
   const [totalReferrals, setTotalReferrals] = useState<
     number | null
@@ -118,7 +118,14 @@ export function ReferralDialog() {
       toast.error("Link kopyalanamadı: " + error.message);
     }
   };
-
+  if (isLoading) {
+    return (
+      <Skeleton className="flex items-center justify-center w-34 h-5 md:h-10 hover:bg-navy-blue bg-dark-blue text-base-white  rounded-xl p-6 text-sm md:text-md font-semibold border-2 border-base-blue"></Skeleton>
+    );
+  }
+  if (!user) {
+    return null;
+  }
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
@@ -157,9 +164,23 @@ export function ReferralDialog() {
           </div>
 
           {isLoadingReferrals ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-6 w-[200px]" />
-              <Skeleton className="h-6 w-[150px]" />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col mt-2 space-y-2">
+                <p className="text-sm font-medium text-left">
+                  Total referrals
+                </p>
+                <div className="flex items-center justify-center h-8.5 bg-navy-blue border-base-blue">
+                  <Skeleton className="text-center border  bg-navy-blue h-3 w-3" />
+                </div>
+              </div>
+              <div className="flex flex-col mt-2 space-y-2">
+                <p className="text-sm font-medium text-left">
+                  Referral bonus score
+                </p>
+                <div className="flex items-center justify-center h-8.5 bg-navy-blue border-base-blue">
+                  <Skeleton className="text-center border bg-navy-blue  h-3 w-3" />
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-4 ">
