@@ -6,7 +6,7 @@
 body {
   background-image: url("/bg.png");
   background-size: cover;
-
+  backdrop-filter: blur(2px);
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
