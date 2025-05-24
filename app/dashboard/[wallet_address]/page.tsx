@@ -1,3 +1,4 @@
+// iceweasel13/test/test-24b40a4dbbc3f1e37c35aff99120bf0010cecfa8/app/dashboard/[wallet_address]/page.tsx
 "use client";
 
 import ClickProgress from "@/components/ClickProgress";
@@ -5,16 +6,12 @@ import { useAuthUser } from "@/hooks/useAuthUser";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import FishImage from "@/components/Fish";
-
-interface DashboardPageProps {
-  params: {
-    wallet_address: string;
-  };
-}
-
+// The PageProps interface is removed and type is defined inline
 export default function DashboardPage({
   params,
-}: DashboardPageProps) {
+}: {
+  params: { wallet_address: string };
+}) {
   const { user, isLoading, error } = useAuthUser();
   const router = useRouter();
 
