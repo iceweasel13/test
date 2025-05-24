@@ -1,7 +1,7 @@
 // app/api/user/purchaseClicks/route.ts
 
 import { NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@/lib/supabase"; // 1. createSupabaseClient doğru çalışıyor mu?
+import { createClient as createSupabaseClient } from "../../../../lib/supabase/client";
 
 // const supabase = createSupabaseClient(); // 2. BU SATIR GLOBAL SCOPE'TA OLMAMALI!
 
@@ -171,6 +171,7 @@ export async function POST(req: Request) {
       },
       { status: 200 }
     );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     // BU BLOK MUHTEMELEN ÇALIŞIYOR
     console.error(

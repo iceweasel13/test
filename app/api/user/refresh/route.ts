@@ -1,7 +1,7 @@
 // app/api/user/refresh/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { createClient as createSupabaseClient } from "@/lib/supabase";
+import { createClient as createSupabaseClient } from "../../../../lib/supabase/client";
 import type { Users } from "@/lib/types";
 
 const JWT_SECRET = process.env.JWT_SECRET;

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import type { Users } from "@/lib/types";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-import { createClient as createSupabaseClient } from "@/lib/supabase";
+import { createClient as createSupabaseClient } from "../../../../lib/supabase/client";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 

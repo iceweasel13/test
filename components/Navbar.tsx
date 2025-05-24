@@ -5,10 +5,12 @@ import React from "react";
 
 import ShopDialog from "./ShopDialog";
 import { ConnectButton } from "@mysten/dapp-kit";
-import StarBar from "./StarBar";
+
 import { ReferralDialog } from "./ReferFriend";
 import Leaderboard from "./Leaderboard";
 import { MobileNav } from "./MobileNav"; // Import the new MobileNav
+
+import StarBar from "./StarBar";
 
 const Navbar = () => {
   return (
@@ -40,5 +42,4 @@ const Navbar = () => {
     </div>
   );
 };
-
 export default Navbar;

@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 
-import { Users } from "./types";
+import { Users } from "../types";
 import { cookies } from "next/headers";
 
 export function createClient() {

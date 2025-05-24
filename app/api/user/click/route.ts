@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { createClient as createSupabaseClient } from "@/lib/supabase";
+import { createClient as createSupabaseClient } from "../../../../lib/supabase/client";
 import { Users } from "@/lib/types";
 
 const JWT_SECRET = process.env.JWT_SECRET || "";

@@ -9,8 +9,11 @@ import {
   useAutoConnectWallet,
 } from "@mysten/dapp-kit";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export function useWalletAuth() {
+  const router = useRouter();
+
   const searchParams = useSearchParams();
   const account = useCurrentAccount();
   const autoConnectionStatus = useAutoConnectWallet();
@@ -188,11 +191,12 @@ export function useWalletAuth() {
                   wallet_address: account.address,
                   message,
                   signature,
-                  referrer_wallet_address: refValue, // Body ile gönderiyoruz
+                  referrer_wallet_address: refValue,
                 }),
               });
 
               if (!res.ok) {
+                // hata yönetimi
                 const errorData = await res
                   .json()
                   .catch(() => ({
@@ -202,37 +206,28 @@ export function useWalletAuth() {
                   }));
                 clearAuth();
                 setLoginError(
-                  errorData.details ||
-                    errorData.error ||
-                    errorData.message ||
-                    "Authentication failed, please try again."
+                  errorData.message ||
+                    "Authentication failed."
                 );
-                reject(
-                  new Error(
-                    errorData.details ||
-                      errorData.error ||
-                      errorData.message ||
-                      "Authentication failed"
-                  )
-                );
+                reject(new Error(errorData.message));
                 return;
               }
 
-              const { user, token: newToken } =
-                await res.json();
-              setAuth(user, newToken);
-              setLoginError(null);
-              resolve();
-            } catch (error) {
-              console.error(
-                "Login API call failed:",
-                error
+              const { user, token } = await res.json();
+              setAuth(user, token);
+
+              // ✅ Başarılı login sonrası yönlendirme:
+              router.replace(
+                `/dashboard/${account.address}`
               );
+
+              resolve();
+            } catch (err) {
               clearAuth();
               setLoginError(
-                "An unexpected error occurred during login. Please try again."
+                "Login failed. Please try again."
               );
-              reject(error);
+              reject(err);
             }
           },
           onError: (err) => {
