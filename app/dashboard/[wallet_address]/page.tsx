@@ -22,7 +22,7 @@ export default async function DashboardPage({
 
   // Oturum kontrolü
   if (error || !user) {
-    redirect("/login");
+    redirect("/");
   }
 
   // Cüzdan adresi doğrulama (Ethereum tarzı)
@@ -30,7 +30,7 @@ export default async function DashboardPage({
     wallet_address
   );
   if (!isValidWalletAddress) {
-    redirect("/error?message=Geçersiz%20cüzdan%20adresi");
+    redirect("/");
   }
 
   // Kullanıcının cüzdan adresiyle URL'deki adresin eşleştiğini kontrol et
@@ -39,9 +39,7 @@ export default async function DashboardPage({
     user.user_metadata?.wallet_address?.toLowerCase() !==
     wallet_address.toLowerCase()
   ) {
-    redirect(
-      "/error?message=Bu%20dashboard%20için%20yetkiniz%20yok"
-    );
+    redirect("/");
   }
 
   return (
