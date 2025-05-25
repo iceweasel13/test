@@ -1,51 +1,47 @@
-import { createClient } from "../../../lib/supabase/server";
-import { redirect } from "next/navigation";
-import DashboardClient from "./DashboardClient";
+// iceweasel13/test/test-24b40a4dbbc3f1e37c35aff99120bf0010cecfa8/app/dashboard/[wallet_address]/page.tsx
+"use client";
 
-// Next.js dinamik rota için params tipi
-interface PageProps {
-  params: Promise<{ wallet_address: string }>;
-}
-
-export default async function DashboardPage({
+import ClickProgress from "@/components/ClickProgress";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import FishImage from "@/components/Fish";
+// The PageProps interface is removed and type is defined inline
+export default function DashboardPage({
   params,
-}: PageProps) {
-  // params Promise'ını çöz
-  const { wallet_address } = await params;
+}: {
+  params: { wallet_address: string };
+}) {
+  const { user, isLoading } = useAuthUser();
+  const router = useRouter();
 
-  // Supabase istemcisi oluştur
-  const supabase = createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/");
+    }
+  }, [user, isLoading, router]);
 
-  // Oturum kontrolü
-  if (error || !user) {
-    redirect("/");
-  }
-
-  // Cüzdan adresi doğrulama (Ethereum tarzı)
-  const isValidWalletAddress = /^0x[a-fA-F0-9]{40}$/.test(
-    wallet_address
-  );
-  if (!isValidWalletAddress) {
-    redirect("/");
-  }
-
-  // Kullanıcının cüzdan adresiyle URL'deki adresin eşleştiğini kontrol et
-  // Not: user.wallet_address'in Supabase kullanıcı metadata'sında veya bir tabloda saklandığını varsayıyorum
+  // Check if the authenticated user's wallet address matches the URL parameter
   if (
-    user.user_metadata?.wallet_address?.toLowerCase() !==
-    wallet_address.toLowerCase()
+    user?.wallet_address.toLowerCase() !==
+    params.wallet_address.toLowerCase()
   ) {
-    redirect("/");
+    return (
+      <p>You are not authorized to view this dashboard.</p>
+    );
   }
 
   return (
-    <DashboardClient
-      wallet_address={wallet_address}
-      user={user}
-    />
+    <main className="relative flex min-h-screen flex-col items-center justify-center  sm:px-5 md:px-8 lg:px-16 overflow-auto">
+      {/* FishImage için ortalayıcı konteyner */}
+      <div className="flex-grow flex items-center justify-center ">
+        <FishImage />
+      </div>
+
+      {/* ClickProgress için alt sabit konteyner */}
+      <div className="pb-48  w-full max-w-md px-4">
+        <ClickProgress />
+      </div>
+    </main>
   );
 }

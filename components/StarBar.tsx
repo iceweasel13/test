@@ -5,6 +5,8 @@ import { useClickStore } from "@/lib/stores/clickStore";
 // Skeleton bileşenini import edin
 import Image from "next/image";
 import React from "react";
+import { Skeleton } from "./ui/skeleton";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 /**
  * Kullanıcının puanını (score + bekleyen tıklamalar) yıldız simgesiyle gösteren bir çubuk bileşeni.
@@ -14,11 +16,26 @@ import React from "react";
  */
 const StarBar = () => {
   const { user, pendingClicks } = useClickStore();
-
+  const { isLoading } = useAuthUser();
   /**
    * Yükleme durumunda skeleton UI gösterir.
    */
-
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center space-x-2  rounded-full  text-xl md:text-2xl font-extrabold text-base-white ">
+        <Image
+          alt={""}
+          height={40}
+          width={40}
+          src={"/star.png"}
+        />
+        <Skeleton
+          id="point"
+          className="w-20 h-7 pb-1  "
+        ></Skeleton>
+      </div>
+    );
+  }
   /**
    * Kullanıcının toplam puanını (score + bekleyen tıklamalar) formatlar.
    */
