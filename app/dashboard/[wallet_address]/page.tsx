@@ -3,17 +3,16 @@
 
 import ClickProgress from "@/components/ClickProgress";
 import { useAuthUser } from "@/hooks/useAuthUser";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect } from "react";
 import FishImage from "@/components/Fish";
-// The PageProps interface is removed and type is defined inline
-export default function DashboardPage({
-  params,
-}: {
-  params: { wallet_address: string };
-}) {
+
+export default function DashboardPage() {
   const { user, isLoading } = useAuthUser();
   const router = useRouter();
+  const params = useParams();
+  const wallet_address = (params?.wallet_address ??
+    "") as string;
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -21,10 +20,9 @@ export default function DashboardPage({
     }
   }, [user, isLoading, router]);
 
-  // Check if the authenticated user's wallet address matches the URL parameter
   if (
     user?.wallet_address.toLowerCase() !==
-    params.wallet_address.toLowerCase()
+    wallet_address.toLowerCase()
   ) {
     return (
       <p>You are not authorized to view this dashboard.</p>
